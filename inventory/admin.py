@@ -1,5 +1,5 @@
 from django.contrib import admin
-from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch
+from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation
 
 class UnitInline(admin.TabularInline):
     model = Unit
@@ -20,6 +20,11 @@ class ClientAdmin(admin.ModelAdmin):
 class BatchAdmin(admin.ModelAdmin):
     list_display = ("product", "quantity", "received_at")
 
+class ReservationAdmin(admin.ModelAdmin):
+    list_display = ("client", "product", "quantity", "created_at", "is_fulfilled")
+    list_filter = ("client","product", "is_fulfilled")
+    search_fields = ("client__name", "product__name")
+    list_editable = ("is_fulfilled",) # поля которые можно редактировать прям в резерве
 
 
 
@@ -30,6 +35,7 @@ admin.site.register(Client, ClientAdmin)
 admin.site.register(DefectType)
 admin.site.register(Unit, UnitAdmin)
 admin.site.register(Batch, BatchAdmin)
+admin.site.register(Reservation, ReservationAdmin)
 
 
 

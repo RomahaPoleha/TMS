@@ -99,3 +99,16 @@ class Unit(models.Model):
         else:
             return f"{self.product} - (без серийника)"
 
+class Reservation(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name= "Клиент")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Товар")
+    quantity = models.PositiveIntegerField(verbose_name = "Количество в резерве")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания резерва")
+    is_fulfilled = models.BooleanField(default=False, verbose_name="Исполнен")
+
+    class Meta:
+        verbose_name = "Резерв"
+        verbose_name_plural = "Резервы"
+
+    def __str__(self):
+        return f"{self.client} - {self.product} - {self.quantity}"
