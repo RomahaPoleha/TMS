@@ -1,3 +1,25 @@
+from django.db.models import F, ExpressionWrapper, IntegerField, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import render
+from django.db.models import Count, Sum, Q
 
-# Create your views here.
+from inventory.models import Product
+
+
+
+
+
+def main_dashboard(request):
+    products=Product.objects.annotate(
+        total_count = Count("unit", filter=Q(unit__status__in=["IN_STOCK", "READY", "IN_SERVICE"])),
+        ready_count = Count("unit", filter=Q(unit__status="READY")), # считаем Unit'ы, у которых статус READY
+        service_count = Count("unit", filter=Q(unit__status="IN_SERVICE")), #
+        reserved_count=Sum("reservation__quantity", filter=Q(reservation__is_fulfilled=False)), #  суммируем quantity из неисполненных резервов
+        available_count=ExpressionWrapper(
+            F('total_count') -
+            Coalesce(F('reserved_count'), Value(0)) -
+            Coalesce(F('service_count'), Value(0)),
+            output_field=IntegerField()
+        )
+        ).order_by('equipment_type__name', 'name')
+    return render(request, "inventory/dashboard.html", {"products": products})

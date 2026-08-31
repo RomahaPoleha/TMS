@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Главная таблица</title>
+</head>
+<body>
+   {% regroup products by equipment_type as type_list %}
+
+{% for type_group in type_list %}
+    <h2>{{ type_group.grouper.name }}</h2>
+    <table border="1">
+        <tr>
+            <th>Наименование</th>
+        <th>Всего на складе</th>
+        <th>Готовое оборудование</th>
+        <th>Сервис</th>
+        <th>Забронировано клиентами</th>
+        <th>Свободно к продаже</th>
+        </tr>
+        {% for product in type_group.list %}
+        <tr>
+            <td>{{ product.name }}</td>
+        <td>{{ product.total_count }}</td>
+        <td>{{ product.ready_count }}</td>
+        <td>{{ product.service_count }}</td>
+        <td>{{ product.reserved_count|default:0 }}</td>
+        <td>{{ product.available_count }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+{% endfor %}
+</body>
+</html>
