@@ -6,9 +6,7 @@ from django.db.models import Count, Sum, Q
 from inventory.models import Product
 
 
-
-
-
+# Вывод данных в главную таблицу
 def main_dashboard(request):
     products=Product.objects.annotate(
         total_count = Count("unit", filter=Q(unit__status__in=["IN_STOCK", "READY", "IN_SERVICE"])), # Фильтрация по нескольким значяениям

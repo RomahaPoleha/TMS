@@ -1,4 +1,8 @@
+from django.utils import timezone
 from django.db import models
+from django.core.exceptions import ValidationError
+
+
 
 # Тип оборудования
 class EquipmentType(models.Model):
@@ -49,7 +53,7 @@ class DefectType(models.Model):
     def __str__(self):
         return self.name
 
-
+# Модель поступления товара на склад
 class Batch(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Товар")
     quantity = models.PositiveIntegerField(verbose_name="Количество")
@@ -86,8 +90,12 @@ class Unit(models.Model):
     serial_number = models.CharField(max_length=100, unique=True, null=True, blank=True, verbose_name="Серийный номер")
     status = models.CharField(max_length=20, choices = STATUS_CHOICES, default = "IN_STOCK", verbose_name="Статус")
     created_at  = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обнавления")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
     batch = models.ForeignKey(Batch,on_delete=models.CASCADE, null=True, blank=True, verbose_name="Партия")
+    defect_type = models.ForeignKey(DefectType, on_delete=models.PROTECT,  blank=True, null=True, verbose_name="Тип неисправности")
+    service_comment = models.TextField(blank=True, verbose_name="Комментарий")
+    task_url = models.URLField(blank=True, null=True, verbose_name="Ссылка на задачу")
+    service_received_at = models.DateTimeField(null=True,blank=True, verbose_name="Дата приёма в сервис")
 
     class Meta:
         verbose_name = "Единица техники"
@@ -98,7 +106,22 @@ class Unit(models.Model):
             return f"{self.product} - {self.serial_number}"
         else:
             return f"{self.product} - (без серийника)"
+    def clean(self):
+        if self.status == "IN_SERVICE":
+            if not self.defect_type:
+                raise ValidationError({"defect_type": "Укажите тип неисправности"})
+            if not self.service_comment:
+                raise ValidationError({"service_comment": "Укажите проблему"})
+            if not self.task_url:
+                raise ValidationError({"task_url": "Укажите ссылку на задачу"})
 
+    def save(self,*args, **kwargs):
+        if self.status == "IN_SERVICE" and not self.service_received_at:
+            self.service_received_at = timezone.now()
+        super().save(*args, **kwargs)
+
+
+# Резерв
 class Reservation(models.Model):
     client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name= "Клиент")
     product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Товар")
