@@ -9,8 +9,8 @@ class EquipmentType(models.Model):
     name = models.CharField(max_length=100, verbose_name="Наименование")
 
     class Meta:
-        verbose_name = "Тип оборудования"
-        verbose_name_plural = "Типы оборудования"
+        verbose_name = "Тип устройства"
+        verbose_name_plural = "Тип устройств"
 
     def __str__(self):
         return self.name
@@ -47,8 +47,8 @@ class DefectType(models.Model):
     name = models.CharField(max_length=200, verbose_name="Наименование")
 
     class Meta:
-        verbose_name = "Тип неисправности"
-        verbose_name_plural = "Типы неисправностей"
+        verbose_name = "Вид неисправности"
+        verbose_name_plural = "Виды неисправностей"
 
     def __str__(self):
         return self.name
@@ -60,8 +60,8 @@ class Batch(models.Model):
     received_at  = models.DateTimeField(auto_now_add=True, verbose_name= "Дата приёмки")
 
     class Meta:
-        verbose_name = "Партия"
-        verbose_name_plural = "Партии"
+        verbose_name = "Приёмка (партия)"
+        verbose_name_plural = "Приёмки (партии)"
 
     def __str__(self):
         date_str = self.received_at.strftime("%d.%m.%Y") if self.received_at else "нет даты"
@@ -134,4 +134,4 @@ class Reservation(models.Model):
         verbose_name_plural = "Резервы"
 
     def __str__(self):
-        return f"{self.client} - {self.product} - {self.quantity}"
+        return f"{self.product}  - {self.client} - {self.quantity}"
