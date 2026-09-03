@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 
 
 
+
 # Тип оборудования
 class EquipmentType(models.Model):
     name = models.CharField(max_length=100, verbose_name="Наименование")
@@ -135,3 +136,28 @@ class Reservation(models.Model):
 
     def __str__(self):
         return f"{self.product}  - {self.client} - {self.quantity}"
+
+#Отгрузки
+class Shipment(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name="Наименование клиента")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата отгрузки резерва")
+    reservation = models.ForeignKey(Reservation,on_delete=models.PROTECT, null=True, blank=True, verbose_name="Резерв")
+
+    class Meta:
+        verbose_name = "Отгрузка"
+        verbose_name_plural = "Отгрузки"
+
+    def __str__(self):
+        return f"{self.client}   - {self.created_at} - {self.reservation}"
+
+# Позиции
+class ShipmentItem(models.Model):
+    shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE)
+    unit = models.ForeignKey(Unit, on_delete=models.PROTECT, verbose_name="Устройство")
+
+    class Meta:
+        verbose_name = "Позиция"
+        verbose_name_plural = "Позиции"
+
+    def __str__(self):
+        return  f"{self.shipment}  - {self.unit}"

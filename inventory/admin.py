@@ -1,5 +1,7 @@
 from django.contrib import admin
-from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation
+from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment, \
+    ShipmentItem
+
 
 class UnitInline(admin.TabularInline):
     model = Unit
@@ -27,6 +29,28 @@ class ReservationAdmin(admin.ModelAdmin):
     list_editable = ("is_fulfilled",) # поля которые можно редактировать прям в резерве
 
 
+class ShipmentItemInline(admin.TabularInline):
+    model = ShipmentItem
+    fields = ('unit',)
+
+
+class ShipmentAdmin(admin.ModelAdmin):
+    inlines = [ShipmentItemInline]
+    list_display = ("client", "created_at", "reservation")
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+
+        # сохранённый объект Shipment
+        shipment = form.instance
+        shipment_all =shipment.shipmentitem_set.all()
+        for item in shipment_all :
+            if item.unit.status != "SOLD":
+                item.unit.status = "SOLD"
+                item.unit.save()
+        if shipment.reservation:
+            shipment.reservation.is_fulfilled = True
+            shipment.reservation.save()
 
 # Регистрация в админке моделей
 admin.site.register(EquipmentType)
@@ -36,6 +60,6 @@ admin.site.register(DefectType)
 admin.site.register(Unit, UnitAdmin)
 admin.site.register(Batch, BatchAdmin)
 admin.site.register(Reservation, ReservationAdmin)
-
+admin.site.register(Shipment, ShipmentAdmin)
 
 
