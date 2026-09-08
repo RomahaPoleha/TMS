@@ -2,9 +2,6 @@ from django.utils import timezone
 from django.db import models
 from django.core.exceptions import ValidationError
 
-
-
-
 # Тип оборудования
 class EquipmentType(models.Model):
     name = models.CharField(max_length=100, verbose_name="Наименование")
@@ -29,7 +26,6 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
-
 # Клиент
 class Client(models.Model):
     name = models.CharField(max_length=200, verbose_name = "Организация")
@@ -40,8 +36,6 @@ class Client(models.Model):
 
     def __str__(self):
         return self.name
-
-
 
 # Тип неисправности
 class DefectType(models.Model):
@@ -97,6 +91,7 @@ class Unit(models.Model):
     service_comment = models.TextField(blank=True, verbose_name="Комментарий")
     task_url = models.URLField(blank=True, null=True, verbose_name="Ссылка на задачу")
     service_received_at = models.DateTimeField(null=True,blank=True, verbose_name="Дата приёма в сервис")
+    service_resolved_at = models.DateTimeField(null =True, blank = True, verbose_name= "Дата возврата из сервиса")
 
     class Meta:
         verbose_name = "Единица техники"
@@ -107,6 +102,7 @@ class Unit(models.Model):
             return f"{self.product} - {self.serial_number}"
         else:
             return f"{self.product} - (без серийника)"
+
     def clean(self):
         if self.status == "IN_SERVICE":
             if not self.defect_type:
@@ -119,7 +115,10 @@ class Unit(models.Model):
     def save(self,*args, **kwargs):
         if self.status == "IN_SERVICE" and not self.service_received_at:
             self.service_received_at = timezone.now()
+        if self.status != "IN_SERVECE" and self.service_received_at and not self.service_resolved_at:
+            self.service_resolved_at = timezone.now()
         super().save(*args, **kwargs)
+
 
 
 # Резерв
@@ -161,3 +160,21 @@ class ShipmentItem(models.Model):
 
     def __str__(self):
         return  f"{self.shipment}  - {self.unit}"
+
+    def clean(self):
+        # Проверка 1
+        if self.unit and self.unit.status == "SOLD":
+            raise ValidationError({"unit": "Этот Unit уже продан"})
+
+        # Проверка 2
+        if self.unit and self.unit.status != "READY":
+            raise ValidationError({"unit": "Можно отгружать только готовые Unit'ы"})
+
+        # Проверка 3
+        existing_items = ShipmentItem.objects.filter(unit=self.unit)
+        if self.pk:
+            existing_items = existing_items.exclude(pk=self.pk)
+
+        if existing_items.exists():
+            raise ValidationError({"unit": "Этот Unit уже отгружен"})
+

@@ -1,6 +1,5 @@
 from django.contrib import admin
-from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment, \
-    ShipmentItem
+from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment,  ShipmentItem
 
 
 class UnitInline(admin.TabularInline):
@@ -33,17 +32,22 @@ class ShipmentItemInline(admin.TabularInline):
     model = ShipmentItem
     fields = ('unit',)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "unit": # Проверяем, какое поле сейчас рисует
+            kwargs["queryset"] = Unit.objects.filter(status = "READY") # Подменяем список вариантов
+        return super().formfield_for_foreignkey(db_field,request,**kwargs) # отдаём управление дальше
+
 
 class ShipmentAdmin(admin.ModelAdmin):
     inlines = [ShipmentItemInline]
     list_display = ("client", "created_at", "reservation")
 
     def save_related(self, request, form, formsets, change):
-        super().save_related(request, form, formsets, change)
+        super().save_related(request, form, formsets, change) # сохранить все данные
 
         # сохранённый объект Shipment
         shipment = form.instance
-        shipment_all =shipment.shipmentitem_set.all()
+        shipment_all = shipment.shipmentitem_set.all() # получение всех позиций через обратную связь
         for item in shipment_all :
             if item.unit.status != "SOLD":
                 item.unit.status = "SOLD"
@@ -53,10 +57,8 @@ class ShipmentAdmin(admin.ModelAdmin):
             shipment.reservation.save()
 
 # Регистрация в админке моделей
-admin.site.register(EquipmentType)
 admin.site.register(Product, ProductAdmin)
 admin.site.register(Client, ClientAdmin)
-admin.site.register(DefectType)
 admin.site.register(Unit, UnitAdmin)
 admin.site.register(Batch, BatchAdmin)
 admin.site.register(Reservation, ReservationAdmin)
