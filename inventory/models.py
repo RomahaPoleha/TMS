@@ -121,11 +121,9 @@ class Unit(models.Model):
 
 
 
-# Резерв
+# Шапка
 class Reservation(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name= "Клиент")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Товар")
-    quantity = models.PositiveIntegerField(verbose_name = "Количество в резерве")
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name="Клиент")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания резерва")
     is_fulfilled = models.BooleanField(default=False, verbose_name="Исполнен")
 
@@ -134,7 +132,20 @@ class Reservation(models.Model):
         verbose_name_plural = "Резервы"
 
     def __str__(self):
-        return f"{self.product}  - {self.client} - {self.quantity}"
+        return f"Резерв для {self.client} от {self.created_at:%d.%m.%Y}"
+
+# Позиция
+class ReservationItem(models.Model):
+    reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE, verbose_name="Резервы" )
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Товар")
+    quantity = models.PositiveIntegerField(verbose_name="Количество в резерве")
+
+    class Meta:
+        verbose_name = "Позиция резерва"
+        verbose_name_plural = "Позиции резервов"
+
+    def __str__(self):
+        return f"{self.product}  - {self.quantity}"
 
 #Отгрузки
 class Shipment(models.Model):

@@ -3,7 +3,7 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import render
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 
-from inventory.models import Product, Reservation
+from inventory.models import Product, Reservation, ReservationItem
 
 
 # Вывод данных в главную таблицу
@@ -14,9 +14,9 @@ def main_dashboard(request):
         service_count = Count("unit", filter=Q(unit__status="IN_SERVICE")), #
         reserved_count=Coalesce(
             Subquery(
-                Reservation.objects.filter(
+                ReservationItem.objects.filter(
                     product=OuterRef('pk'),
-                    is_fulfilled=False
+                    reservation__is_fulfilled=False
                 ).annotate(
                     total=Sum('quantity')
                 ).values('total')[:1]
@@ -31,3 +31,8 @@ def main_dashboard(request):
         )
         ).order_by('equipment_type__name', 'name')
     return render(request, "inventory/dashboard.html", {"products": products})
+
+
+def active_reservations(request):
+    reservations = Reservation.objects.filter(is_fulfilled=False)
+    return render(request, "inventory/reservations.html", {"reservations":reservations})

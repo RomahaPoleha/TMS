@@ -1,14 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Главная таблица</title>
-</head>
-<body>
-   {% regroup products by equipment_type as type_list %}
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+{% regroup products by equipment_type as type_list %}
 
 {% for type_group in type_list %}
     <h2>{{ type_group.grouper.name }}</h2>
-    <table border="2">
+    <table class = "table table-striped table-hover table-bordered">
         <tr>
             <th>Наименование</th>
         <th> Всего на складе </th>
@@ -29,5 +27,5 @@
         {% endfor %}
     </table>
 {% endfor %}
-</body>
-</html>
+
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2>Активные резервы</h2>
+
+{% regroup reservations by client as client_list %}
+
+{% for client_group in client_list %}
+
+    <h3>{{ client_group.grouper }}</h3>
+
+    <table class="table table-striped table-hover table-bordered">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Товар</th>
+                <th>Количество</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reservation in client_group.list %}
+                {% for item in reservation.reservationitem_set.all %}
+                <tr>
+                    <td>{{ reservation.created_at }}</td>
+                    <td>{{ item.product }}</td>
+                    <td>{{ item.quantity }}</td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% endfor %}
+
+{% endblock %}
