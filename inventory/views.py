@@ -3,7 +3,7 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import render
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 
-from inventory.models import Product, Reservation, ReservationItem
+from inventory.models import Product, Reservation, ReservationItem, Unit
 
 
 # Вывод данных в главную таблицу
@@ -36,3 +36,7 @@ def main_dashboard(request):
 def active_reservations(request):
     reservations = Reservation.objects.filter(is_fulfilled=False)
     return render(request, "inventory/reservations.html", {"reservations":reservations})
+
+def active_service(request):
+    units = Unit.objects.filter( status = "IN_SERVICE").order_by('service_received_at')
+    return render(request, "inventory/service.html", {"units":units})

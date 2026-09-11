@@ -1,0 +1,30 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2>Устройства в сервисе</h2>
+
+    <table class="table table-striped table-hover table-bordered">
+    <thead>
+     <tr>
+        <th> Дата обнаружения неисправности</th>
+        <th> Товар </th>
+        <th> Серийный номер </th>
+        <th> Неисправность </th>
+        <th> Комментарий </th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for unit in units %}
+    <tr>
+        <td>{{ unit.service_received_at }}</td>
+            <td>{{ unit.product }}</td>
+            <td>{{ unit.serial_number }}</td>
+            <td>{{ unit.defect_type }}</td>
+            <td>{{ unit.service_comment }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
+{% endblock %}
