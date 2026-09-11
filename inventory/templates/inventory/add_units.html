@@ -1,0 +1,28 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2>Приход</h2>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <label for="product">Товар:</label>
+    <select name="product" id="product" required>
+        <option value="">-- Выберите товар --</option><br>
+
+        {% for product in products %}
+            <option value="{{ product.id }}">{{ product }}</option>
+        {% endfor %}
+
+    </select>
+
+    <label for="quantity">Количество:</label>
+    <input type="number" name="quantity" id="quantity" min="1" required>
+
+    <button type="submit">Принять на склад</button>
+    <a href="{% url 'add_product' %}">➕ Новый товар</a>
+</form>
+
+
+{% endblock %}
