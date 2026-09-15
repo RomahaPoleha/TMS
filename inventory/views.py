@@ -1,5 +1,4 @@
 from itertools import product
-from tkinter.font import names
 
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
@@ -65,7 +64,7 @@ def add_units(request):
 
 # Создание новой номенклатуры
 def add_product(request):
-    equipment_types = EquipmentType.objects.all()  # ← определяем СРАЗУ
+    equipment_types = EquipmentType.objects.all()
 
     if request.method == "POST":
         name = request.POST.get('name')
@@ -89,6 +88,12 @@ def add_product(request):
             })
 
     return render(request, "inventory/add_product.html", {"equipment_types": equipment_types})
+
+
+def prepare_list(request):
+    products = Product.objects.annotate(
+        units_to_prepare=Count("unit", filter=Q(unit__status="IN_STOCK"))).filter(units_to_prepare__gt=0)
+    return render(request, "inventory/prepare_list.html", {"products": products})
 
 
 

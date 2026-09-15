@@ -1,0 +1,29 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2> Неготовые устройства </h2>
+
+  <table class="table table-striped table-hover table-bordered">
+    <thead>
+    <tr>
+      <th>Устройство</th>
+      <th>Колличество к подготовке</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for product in products %}
+    <tr>
+
+        <td>
+          <a href="{% url 'prepare_product' product.id %}">
+            {{ product.name }}
+          </a>
+        </td>
+        <td>{{ product.units_to_prepare}} </td>
+    </tr>
+    {% endfor %}
+</tbody>
+    </table>
+
+{% endblock %}
