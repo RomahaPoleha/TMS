@@ -1,0 +1,41 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2>Добавление новой номенклатуры</h2>
+
+<!-- Блок для отображения ошибок -->
+{% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label for="name" class="form-label">Наименование товара:</label>
+        <input type="text"
+               class="form-control"
+               id="name"
+               name="name"
+               value="{{ name|default:'' }}"
+               required>
+    </div>
+
+    <div class="mb-3">
+        <label for="equipment_type" class="form-label">Тип оборудования:</label>
+        <select class="form-select" id="equipment_type" name="equipment_type" required>
+            <option value="">-- Выберите тип --</option>
+            {% for et in equipment_types %}
+                <option value="{{ et.id }}" {% if et.id == selected_equipment_type_id %}selected{% endif %}>
+                    {{ et.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Создать товар</button>
+    <a href="{% url 'add_units' %}" class="btn btn-secondary">Отмена</a>
+</form>
+
+{% endblock %}

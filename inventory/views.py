@@ -65,15 +65,14 @@ def add_units(request):
 
 # Создание новой номенклатуры
 def add_product(request):
+    equipment_types = EquipmentType.objects.all()  # ← определяем СРАЗУ
 
     if request.method == "POST":
         name = request.POST.get('name')
         equipment_type_id = request.POST.get('equipment_type')
-        equipment_types = EquipmentType.objects.all()
         error_message = None
 
         if name and equipment_type_id:
-            # Проверяем дубликаты
             if Product.objects.filter(name=name).exists():
                 error_message = "Товар с таким названием уже существует"
             else:
@@ -83,12 +82,11 @@ def add_product(request):
         else:
             error_message = "Заполните все поля"
 
-
-
         if error_message:
             return render(request, "inventory/add_product.html", {
                 "equipment_types": equipment_types,
-                "error": error_message,})  # ← передаём ошибку в шаблон
+                "error": error_message,
+            })
 
     return render(request, "inventory/add_product.html", {"equipment_types": equipment_types})
 
