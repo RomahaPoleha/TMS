@@ -1,0 +1,32 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2>{{ product.name }}</h2>
+<p>К подготовке: {{ units|length }} устройств</p>
+<form method = "POST">
+  {% csrf_token %}
+
+    <table class="table table-striped table-hover table-bordered">
+    <thead>
+     <tr>
+        <th> Товар </th>
+        <th> Поле для ввода серийниа </th>
+       <th> Поле подтверждения</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for unit in units %}
+    <tr>
+        <td>{{ unit.product }}</td>
+        <td><input type="text" name="serial_{{ unit.id }}"></td>
+        <td> <button type="submit" name="prepare_unit" value="{{ unit.id }}" class="btn btn-primary btn-sm">
+         Подготовить
+           </button>
+           </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+</form>
+{% endblock %}

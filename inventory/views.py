@@ -1,5 +1,3 @@
-from itertools import product
-
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
@@ -8,93 +6,117 @@ from django.db.models import Count, Sum, Q, Subquery, OuterRef
 from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType
 
 
-# Вывод данных в главную таблицу
 def main_dashboard(request):
-    products=Product.objects.annotate(
-        total_count = Count("unit", filter=Q(unit__status__in=["IN_STOCK", "READY", "IN_SERVICE"])), # Фильтрация по нескольким значяениям
-        ready_count = Count("unit", filter=Q(unit__status="READY")), # считаем Unit'ы, у которых статус READY
-        service_count = Count("unit", filter=Q(unit__status="IN_SERVICE")), #
+    """Сводная таблица по товарам: наличие, резервы, сервис, доступность."""
+    products = Product.objects.annotate(
+        total_count=Count("unit", filter=Q(unit__status__in=["IN_STOCK", "READY", "IN_SERVICE"])),
+        ready_count=Count("unit", filter=Q(unit__status="READY")),
+        service_count=Count("unit", filter=Q(unit__status="IN_SERVICE")),
+
+        # Сумма quantity из активных резервов через подзапрос,
+        # т.к. резервы хранятся в ReservationItem, а не в Reservation
         reserved_count=Coalesce(
             Subquery(
                 ReservationItem.objects.filter(
                     product=OuterRef('pk'),
                     reservation__is_fulfilled=False
-                ).annotate(
-                    total=Sum('quantity')
-                ).values('total')[:1]
+                ).annotate(total=Sum('quantity')).values('total')[:1]
             ),
             Value(0)
         ),
+
+        # Свободно = Всего - Резерв - Сервис
         available_count=ExpressionWrapper(
-            F('total_count') -
-            Coalesce(F('reserved_count'), Value(0)) - # Coalesce заменяет None на значение по умолчанию в данном случае на 0
-            Coalesce(F('service_count'), Value(0)),
+            F('total_count') - Coalesce(F('reserved_count'), Value(0)) - Coalesce(F('service_count'), Value(0)),
             output_field=IntegerField()
         )
-        ).order_by('equipment_type__name', 'name')
+    ).order_by('equipment_type__name', 'name')
+
     return render(request, "inventory/dashboard.html", {"products": products})
 
-# Вывод устройств в резерве
+
 def active_reservations(request):
+    """Список неисполненных резервов."""
     reservations = Reservation.objects.filter(is_fulfilled=False)
-    return render(request, "inventory/reservations.html", {"reservations":reservations})
+    return render(request, "inventory/reservations.html", {"reservations": reservations})
 
-# Вывод устройст в сервисе
+
 def active_service(request):
-    units = Unit.objects.filter( status = "IN_SERVICE").order_by('service_received_at')
-    return render(request, "inventory/service.html", {"units":units})
+    """Устройства в ремонте, отсортированные по дате приёма."""
+    units = Unit.objects.filter(status="IN_SERVICE").order_by('service_received_at')
+    return render(request, "inventory/service.html", {"units": units})
 
-# Функция прихода
+
 def add_units(request):
+    """Приёмка партии: создание N Unit'ов без серийников."""
     if request.method == "POST":
-        product_id = request.POST.get('product')
+        product = Product.objects.get(id=request.POST.get('product'))
         quantity = int(request.POST.get('quantity'))
 
-        product = Product.objects.get(id = product_id)
-
         for _ in range(quantity):
-            Unit.objects.create(
-                product=product,
-                status = "IN_STOCK" # serial_number не указываем — он будет None
-            )
+            Unit.objects.create(product=product, status="IN_STOCK")
+
         return redirect("dashboard")
 
-    products = Product.objects.all()
-    return render(request, "inventory/add_units.html", {"products": products})
+    return render(request, "inventory/add_units.html", {"products": Product.objects.all()})
 
-# Создание новой номенклатуры
+
 def add_product(request):
+    """Создание номенклатуры с проверкой дублей."""
     equipment_types = EquipmentType.objects.all()
 
     if request.method == "POST":
         name = request.POST.get('name')
         equipment_type_id = request.POST.get('equipment_type')
-        error_message = None
 
-        if name and equipment_type_id:
-            if Product.objects.filter(name=name).exists():
-                error_message = "Товар с таким названием уже существует"
-            else:
-                equipment_type = EquipmentType.objects.get(id=equipment_type_id)
-                Product.objects.create(name=name, equipment_type=equipment_type)
-                return redirect('add_units')
-        else:
-            error_message = "Заполните все поля"
-
-        if error_message:
+        if not name or not equipment_type_id:
             return render(request, "inventory/add_product.html", {
                 "equipment_types": equipment_types,
-                "error": error_message,
+                "error": "Заполните все поля",
             })
+
+        if Product.objects.filter(name=name).exists():
+            return render(request, "inventory/add_product.html", {
+                "equipment_types": equipment_types,
+                "error": "Товар с таким названием уже существует",
+            })
+
+        Product.objects.create(
+            name=name,
+            equipment_type=EquipmentType.objects.get(id=equipment_type_id)
+        )
+        return redirect('add_units')
 
     return render(request, "inventory/add_product.html", {"equipment_types": equipment_types})
 
 
 def prepare_list(request):
+    """Товары с Unit'ами без серийников (статус IN_STOCK)."""
     products = Product.objects.annotate(
-        units_to_prepare=Count("unit", filter=Q(unit__status="IN_STOCK"))).filter(units_to_prepare__gt=0)
+        units_to_prepare=Count('unit', filter=Q(unit__status='IN_STOCK'))
+    ).filter(units_to_prepare__gt=0)
+
     return render(request, "inventory/prepare_list.html", {"products": products})
 
 
+def prepare_product(request, product_id):
+    """Ввод серийника и перевод Unit в READY. Одна кнопка на строку."""
+    product = Product.objects.get(id=product_id)
+    units = Unit.objects.filter(product=product, status='IN_STOCK')
 
+    if request.method == "POST":
+        unit_id = request.POST.get('prepare_unit')
+        serial = request.POST.get(f'serial_{unit_id}')
 
+        if serial:
+            unit = Unit.objects.get(id=unit_id)
+            unit.serial_number = serial
+            unit.status = 'READY'
+            unit.save()
+
+        return redirect('prepare_product', product_id=product.id)
+
+    return render(request, "inventory/prepare_product.html", {
+        "product": product,
+        "units": units,
+    })

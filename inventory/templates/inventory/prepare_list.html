@@ -9,6 +9,7 @@
     <tr>
       <th>Устройство</th>
       <th>Колличество к подготовке</th>
+        <th>Кнопка перехода</th>
     </tr>
     </thead>
     <tbody>
@@ -16,11 +17,10 @@
     <tr>
 
         <td>
-          <a href="{% url 'prepare_product' product.id %}">
             {{ product.name }}
-          </a>
         </td>
         <td>{{ product.units_to_prepare}} </td>
+        <td><a href="{% url 'prepare_product' product.id %}">Перейти</a></td>
     </tr>
     {% endfor %}
 </tbody>
