@@ -1,6 +1,16 @@
 {% extends "inventory/base.html" %}
 
+
+
 {% block content %}
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
 
 <h2>Устройства в сервисе</h2>
 
@@ -12,6 +22,7 @@
         <th> Серийный номер </th>
         <th> Неисправность </th>
         <th> Комментарий </th>
+         <th> Действие </th>
     </tr>
     </thead>
     <tbody>
@@ -22,6 +33,11 @@
             <td>{{ unit.serial_number }}</td>
             <td>{{ unit.defect_type }}</td>
             <td>{{ unit.service_comment }}</td>
+        <td>
+        <form method="POST" action="{% url 'finish_service' unit.id %}" style="display:inline;">
+       {% csrf_token %}
+       <button type="submit" class="btn btn-success btn-sm">Завершить ремонт</button>
+   </form></td>
     </tr>
     {% endfor %}
     </tbody>

@@ -1,3 +1,5 @@
+from django.contrib import messages
+
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
@@ -56,6 +58,7 @@ def add_units(request):
         for _ in range(quantity):
             Unit.objects.create(product=product, status="IN_STOCK")
 
+
         return redirect("dashboard")
 
     return render(request, "inventory/add_units.html", {"products": Product.objects.all()})
@@ -113,6 +116,7 @@ def prepare_product(request, product_id):
             unit.serial_number = serial
             unit.status = 'READY'
             unit.save()
+            messages.success(request, f"Оборудование отпредпродажено: {unit.serial_number}")
 
         return redirect('prepare_product', product_id=product.id)
 
@@ -120,3 +124,27 @@ def prepare_product(request, product_id):
         "product": product,
         "units": units,
     })
+
+
+from django.contrib import messages
+
+
+def finish_service(request, unit_id):
+    # Защита: принимаем только POST
+    if request.method != "POST":
+        return redirect('service')
+
+    try:
+        unit = Unit.objects.get(id=unit_id)
+    except Unit.DoesNotExist:
+        messages.error(request, "Устройство не найдено")
+        return redirect('service')
+
+    if unit.status == "IN_SERVICE":
+        unit.status = "READY"
+        unit.save()  # service_resolved_at проставится автоматически
+        messages.success(request, f"Ремонт завершён: {unit.serial_number}")
+    else:
+        messages.error(request, "Данный товар отсутствует в сервисе")
+
+    return redirect('service')
