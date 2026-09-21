@@ -1,11 +1,14 @@
+from itertools import product
+
 from django.contrib import messages
+from django.contrib.messages import error
 
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 
-from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType
+from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client
 
 
 def main_dashboard(request):
@@ -42,11 +45,35 @@ def active_reservations(request):
     reservations = Reservation.objects.filter(is_fulfilled=False)
     return render(request, "inventory/reservations.html", {"reservations": reservations})
 
+def create_reservation(request):
+    items = []
+    if request.method == "POST":
+        client_id = request.POST.get('client')  # получаем ID клиента из формы
+        if client_id:
+            for i in range(1, 10):
+                product = request.POST.get(f"product_{i}")
+                quantity = request.POST.get(f"quantity_{i}")
+                if not product or not quantity:
+                    continue
+                else:
+                    items.append((product,quantity))
+        else:
+            error =  "Нет данных"
+            return render(request, "inventory/create_reservation.html", {"error":error})
+
+
+    clients = Client.objects.all()
+    products = Product.objects.all()
+
+    return  render(request, "inventory/create_reservation.html", {"clients": clients, "products": products})
+
 
 def active_service(request):
     """Устройства в ремонте, отсортированные по дате приёма."""
     units = Unit.objects.filter(status="IN_SERVICE").order_by('service_received_at')
     return render(request, "inventory/service.html", {"units": units})
+
+
 
 
 def add_units(request):
@@ -126,9 +153,9 @@ def prepare_product(request, product_id):
     })
 
 
-from django.contrib import messages
 
 
+# Завершение серивиса(смена статуса)
 def finish_service(request, unit_id):
     # Защита: принимаем только POST
     if request.method != "POST":

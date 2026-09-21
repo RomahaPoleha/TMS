@@ -1,0 +1,86 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<h2>Создать резерв</h2>
+<form method="POST" id="reservation-form">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label for="client">Клиент:</label>
+        <select name="client" id="client" class="form-select" required>
+            <option value="">-- Выберите клиента --</option>
+            {% for client in clients %}
+                <option value="{{ client.id }}">{{ client }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <h4>Позиции резерва</h4>
+
+    <div id="items-container">
+        <!-- Первая строка (всегда видна) -->
+        <div class="item-row row mb-2">
+            <div class="col-md-5">
+                <select name="product_1" class="form-select">
+                    <option value="">-- Товар --</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}">{{ product }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="number" name="quantity_1" min="1" class="form-control" placeholder="Количество">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-danger btn-sm remove-item" style="display:none;">❌</button>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-secondary mb-3" id="add-item">➕ Добавить позицию</button>
+
+    <br>
+    <button type="submit" class="btn btn-primary">Зарезервировать</button>
+</form>
+
+<script>
+// Счётчик для уникальных имён полей
+let itemCount = 1;
+
+// Кнопка "Добавить позицию"
+document.getElementById('add-item').addEventListener('click', function() {
+    itemCount++;
+
+    // Клонируем первую строку
+    const firstRow = document.querySelector('.item-row');
+    const newRow = firstRow.cloneNode(true);
+
+    // Меняем имена полей
+    const select = newRow.querySelector('select');
+    select.name = `product_${itemCount}`;
+    select.value = '';  // Сбрасываем выбор
+
+    const input = newRow.querySelector('input');
+    input.name = `quantity_${itemCount}`;
+    input.value = '';  // Очищаем поле
+
+    // Показываем кнопку удаления
+    const removeBtn = newRow.querySelector('.remove-item');
+    removeBtn.style.display = 'inline-block';
+
+    // Добавляем обработчик на кнопку удаления
+    removeBtn.addEventListener('click', function() {
+        newRow.remove();
+    });
+
+    // Добавляем новую строку в контейнер
+    document.getElementById('items-container').appendChild(newRow);
+});
+
+// Обработчик для первой строки (если пользователь захочет её удалить)
+document.querySelector('.remove-item').addEventListener('click', function() {
+    this.closest('.item-row').remove();
+});
+</script>
+
+{% endblock %}

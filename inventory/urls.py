@@ -10,6 +10,7 @@ urlpatterns = [
     path('add-product/', views.add_product, name = "add_product"),
     path('prepare-list/', views.prepare_list, name = "prepare_list"),
     path('prepare/<int:product_id>/', views.prepare_product, name = "prepare_product"),
-    path('finish-service/<int:unit_id>/', views.finish_service, name='finish_service')
+    path('finish-service/<int:unit_id>/', views.finish_service, name='finish_service'),
+    path('create-reservation/', views.create_reservation, name = "create_reservation")
 
 ]
