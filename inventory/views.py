@@ -24,7 +24,7 @@ def main_dashboard(request):
             Subquery(
                 ReservationItem.objects.filter(
                     product=OuterRef('pk'),
-                    reservation__is_fulfilled=False
+                    reservation__is_fulfilled=False).values("product"
                 ).annotate(total=Sum('quantity')).values('total')[:1]
             ),
             Value(0)
@@ -46,27 +46,42 @@ def active_reservations(request):
     return render(request, "inventory/reservations.html", {"reservations": reservations})
 
 def create_reservation(request):
-    items = []
+    clients = Client.objects.all()
+    products = Product.objects.all()
     if request.method == "POST":
         client_id = request.POST.get('client')  # получаем ID клиента из формы
         if client_id:
+            items = []
             for i in range(1, 10):
                 product = request.POST.get(f"product_{i}")
                 quantity = request.POST.get(f"quantity_{i}")
                 if not product or not quantity:
                     continue
-                else:
-                    items.append((product,quantity))
+                items.append((product,quantity))
+
+
+            if not items:
+                error = "Добавьте хотябы 1 позицию"
+                return render(request, "inventory/create_reservation.html",
+                              {"clients": clients, "products": products, "error": error})
         else:
-            error =  "Нет данных"
-            return render(request, "inventory/create_reservation.html", {"error":error})
+            error = "Выберите клиента"
+            return render(request, "inventory/create_reservation.html",
+                          {"clients": clients, "products": products, "error": error})
 
+        client = Client.objects.get(id=client_id)
+        reservation = Reservation.objects.create(client=client)
+        for product_id, quantity in items:
+            product = Product.objects.get(id=product_id)
+            quantity = int(quantity)
+            ReservationItem.objects.create(reservation=reservation, product=product, quantity=quantity)
 
-    clients = Client.objects.all()
-    products = Product.objects.all()
+        return redirect('reservations')
 
-    return  render(request, "inventory/create_reservation.html", {"clients": clients, "products": products})
-
+    return render(request, "inventory/create_reservation.html", {
+        "clients": clients,
+        "products": products
+    })
 
 def active_service(request):
     """Устройства в ремонте, отсортированные по дате приёма."""
