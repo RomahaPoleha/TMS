@@ -37,7 +37,8 @@
         <form method="POST" action="{% url 'finish_service' unit.id %}" style="display:inline;">
        {% csrf_token %}
        <button type="submit" class="btn btn-success btn-sm">Завершить ремонт</button>
-   </form></td>
+   </form>
+        </td>
     </tr>
     {% endfor %}
     </tbody>

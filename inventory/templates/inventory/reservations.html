@@ -10,22 +10,33 @@
 {% for reservation in reservations %}
     <div class="card mb-3">
         <div class="card-header">
-            <strong>Резерв #{{ reservation.id }}</strong> —
+            <strong>Резерв #{{ reservation.id }}</strong>
             {{ reservation.client }} —
             {{ reservation.created_at }}
+            <td>
+    <!-- Другие содержимое ячейки -->
+    <div style="text-align: right;">
+        <a href="{% url 'ship_reservation' reservation.id %}" class="btn btn-primary btn-sm">Отгрузить</a>
+    </div>
+</td>
+
         </div>
         <table class="table mb-0">
             <thead>
                 <tr>
                     <th>Товар</th>
                     <th>Количество</th>
+
                 </tr>
             </thead>
             <tbody>
                 {% for item in reservation.reservationitem_set.all %}
                 <tr>
-                    <td>{{ item.product }}</td>
+                    <td>{{ item.product }} </td>
                     <td>{{ item.quantity }}</td>
+
+
+
                 </tr>
                 {% endfor %}
             </tbody>

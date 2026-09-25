@@ -40,6 +40,26 @@ def main_dashboard(request):
     return render(request, "inventory/dashboard.html", {"products": products})
 
 
+def ship_reservation(request, reservation_id):
+    reservation = Reservation.objects.get(id=reservation_id)
+    reservation_items = ReservationItem.objects.filter(reservation=reservation)
+    # Для каждой панели находим доступные Unit'ы
+    items_with_units = []
+
+    for item in reservation_items:
+        # Ищем Unit'ы этого товара со статусом READY
+        available_units = Unit.objects.filter(
+            product=item.product,
+            status="READY"
+        )
+        items_with_units.append({"item": item,
+            "available_units": available_units,
+        })
+    return render(request, "inventory/ship_reservation.html", {
+        "reservation":reservation, "items_with_units": items_with_units})
+
+
+
 def active_reservations(request):
     """Список неисполненных резервов."""
     reservations = Reservation.objects.filter(is_fulfilled=False)
@@ -190,3 +210,4 @@ def finish_service(request, unit_id):
         messages.error(request, "Данный товар отсутствует в сервисе")
 
     return redirect('service')
+
