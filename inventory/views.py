@@ -1,8 +1,5 @@
-from itertools import product
 
 from django.contrib import messages
-from django.contrib.messages import error
-
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
@@ -41,23 +38,57 @@ def main_dashboard(request):
 
 
 def ship_reservation(request, reservation_id):
+    """Отгрузка резервов клиенту"""
     reservation = Reservation.objects.get(id=reservation_id)
     reservation_items = ReservationItem.objects.filter(reservation=reservation)
-    # Для каждой панели находим доступные Unit'ы
-    items_with_units = []
 
+    if request.method == "POST":
+        # Проходим по всем позициям резерва
+        for item in reservation_items:
+            selected_ids = request.POST.getlist(f'unit_{item.id}')
+
+            # Проверяем, что выбрано правильное количество устройств
+            if len(selected_ids) != item.quantity:
+                messages.error(
+                    request,
+                    f"Для товара {item.product} нужно выбрать {item.quantity} шт., выбрано {len(selected_ids)}"
+                )
+                return redirect('ship_reservation', reservation_id=reservation_id)
+
+            # Меняем статус каждого выбранного Unit на SOLD
+            for unit_id in selected_ids:
+                unit = Unit.objects.get(id=unit_id)
+                unit.status = 'SOLD'
+                unit.save()
+
+        # Помечаем резерв как исполненный
+        reservation.is_fulfilled = True
+        reservation.save()
+        messages.success(request, "Резерв успешно отгружен")
+        return redirect('reservations')
+
+    # GET-запрос: собираем данные для шаблона
+    items_with_units = []
     for item in reservation_items:
-        # Ищем Unit'ы этого товара со статусом READY
         available_units = Unit.objects.filter(
             product=item.product,
             status="READY"
         )
-        items_with_units.append({"item": item,
+        items_with_units.append({
+            "item": item,
             "available_units": available_units,
+            "quantity_range": range(item.quantity),
         })
-    return render(request, "inventory/ship_reservation.html", {
-        "reservation":reservation, "items_with_units": items_with_units})
 
+    return render(request, "inventory/ship_reservation.html", {
+        "reservation": reservation,
+        "items_with_units": items_with_units,
+    })
+
+def reservation_history(request):
+    """История отгрузок"""
+    reservations = Reservation.objects.filter(is_fulfilled=True).order_by('-created_at')
+    return render (request, "inventory/reservations_history.html" , {"reservations": reservations })
 
 
 def active_reservations(request):

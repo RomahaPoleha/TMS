@@ -1,0 +1,34 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<h2>Отгрузка для {{ reservation.client }}</h2>
+<p>Дата создания резерва: {{ reservation.created_at|date:"d.m.Y" }}</p>
+
+<form method="POST">
+    {% csrf_token %}
+
+    {% for item_data in items_with_units %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{{ item_data.item.product }} <span class="badge bg-primary">Нужно: {{ item_data.item.quantity }} шт.</span></h5>
+            </div>
+            <div class="card-body">
+                {% for i in item_data.quantity_range %}
+                    <div class="mb-3">
+                        <label class="form-label">Устройство {{ forloop.counter }}:</label>
+                        <select name="unit_{{ item_data.item.id }}" class="form-select" required>
+                            <option value="">-- Выберите серийный номер --</option>
+                            {% for unit in item_data.available_units %}
+                                <option value="{{ unit.id }}">{{ unit.serial_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-success btn-lg">Подтвердить отгрузку</button>
+    <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">Отмена</a>
+</form>
+{% endblock %}
