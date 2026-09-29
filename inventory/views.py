@@ -1,10 +1,9 @@
-
 from django.contrib import messages
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
-
+from django.utils import timezone
 from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client
 
 
@@ -58,11 +57,13 @@ def ship_reservation(request, reservation_id):
             # Меняем статус каждого выбранного Unit на SOLD
             for unit_id in selected_ids:
                 unit = Unit.objects.get(id=unit_id)
+                unit.reservation=reservation # привязка Unit к текущему резерву через новое поле
                 unit.status = 'SOLD'
                 unit.save()
 
         # Помечаем резерв как исполненный
         reservation.is_fulfilled = True
+        reservation.date_of_shipment = timezone.now()
         reservation.save()
         messages.success(request, "Резерв успешно отгружен")
         return redirect('reservations')
@@ -242,3 +243,10 @@ def finish_service(request, unit_id):
 
     return redirect('service')
 
+
+def shipment_registry(request):
+    """История отгруженных серийников"""
+    units = Unit.objects.filter(
+        status = "SOLD",
+        reservation__isnull=False).select_related('reservation', 'reservation__client', 'product').order_by('-reservation__created_at')
+    return render(request, "inventory/shipment_registry.html", {"units": units})

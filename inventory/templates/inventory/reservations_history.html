@@ -4,29 +4,27 @@
 
 <h2>История отгрузок</h2>
 
-{% for reserv in reservations %}
-    <div class="card mb-3">
-        <div class="card-header">
-            <h5>{{ reserv.client }} — {{ reserv.created_at|date:"d.m.Y" }}</h5>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Товар</th>
-                        <th>Количество</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in reserv.reservationitem_set.all %}
-                    <tr>
-                        <td>{{ item.product }}</td>
-                        <td>{{ item.quantity }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-{% endfor %}
+<table class="table table-striped table-hover table-bordered">
+    <thead>
+        <tr>
+            <th>Дата отгрузки</th>
+            <th>Клиент</th>
+            <th>Товар</th>
+            <th>Количество</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for reserv in reservations %}
+            {% for item in reserv.reservationitem_set.all %}
+            <tr>
+                <td>{{ reserv.date_of_shipment }}</td>
+                <td>{{ reserv.client }}</td>
+                <td>{{ item.product }}</td>
+                <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+        {% endfor %}
+    </tbody>
+</table>
+
 {% endblock %}

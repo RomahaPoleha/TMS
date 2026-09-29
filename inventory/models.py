@@ -2,6 +2,34 @@ from django.utils import timezone
 from django.db import models
 from django.core.exceptions import ValidationError
 
+
+# Клиент
+class Client(models.Model):
+    name = models.CharField(max_length=200, verbose_name = "Организация")
+
+    class Meta:
+        verbose_name = "Клиент"
+        verbose_name_plural = "Клиенты"
+
+    def __str__(self):
+        return self.name
+
+
+# Шапка
+class Reservation(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name="Клиент")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания резерва")
+    is_fulfilled = models.BooleanField(default=False, verbose_name="Исполнен")
+    date_of_shipment = models.DateField(null=True, blank=True, verbose_name="Дата отгрузки")
+
+    class Meta:
+        verbose_name = "Резерв"
+        verbose_name_plural = "Резервы"
+
+    def __str__(self):
+        return f"Резерв для {self.client} от {self.created_at:%d.%m.%Y}"
+
+
 # Тип оборудования
 class EquipmentType(models.Model):
     name = models.CharField(max_length=100, verbose_name="Наименование")
@@ -26,16 +54,7 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
-# Клиент
-class Client(models.Model):
-    name = models.CharField(max_length=200, verbose_name = "Организация")
 
-    class Meta:
-        verbose_name = "Клиент"
-        verbose_name_plural = "Клиенты"
-
-    def __str__(self):
-        return self.name
 
 # Тип неисправности
 class DefectType(models.Model):
@@ -92,6 +111,7 @@ class Unit(models.Model):
     task_url = models.URLField(blank=True, null=True, verbose_name="Ссылка на задачу")
     service_received_at = models.DateTimeField(null=True,blank=True, verbose_name="Дата приёма в сервис")
     service_resolved_at = models.DateTimeField(null =True, blank = True, verbose_name= "Дата возврата из сервиса")
+    reservation = models.ForeignKey(Reservation, on_delete=models.SET_NULL, null=True, blank = True, verbose_name = "Резерв")
 
     class Meta:
         verbose_name = "Единица техники"
@@ -121,18 +141,7 @@ class Unit(models.Model):
 
 
 
-# Шапка
-class Reservation(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name="Клиент")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания резерва")
-    is_fulfilled = models.BooleanField(default=False, verbose_name="Исполнен")
 
-    class Meta:
-        verbose_name = "Резерв"
-        verbose_name_plural = "Резервы"
-
-    def __str__(self):
-        return f"Резерв для {self.client} от {self.created_at:%d.%m.%Y}"
 
 # Позиция
 class ReservationItem(models.Model):
