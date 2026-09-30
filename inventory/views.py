@@ -1,3 +1,4 @@
+
 from django.contrib import messages
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
@@ -250,3 +251,7 @@ def shipment_registry(request):
         status = "SOLD",
         reservation__isnull=False).select_related('reservation', 'reservation__client', 'product').order_by('-reservation__created_at')
     return render(request, "inventory/shipment_registry.html", {"units": units})
+
+def add_to_service(request):
+    units = Unit.objects.filter(status__in=['READY', 'IN_STOCK']).select_related('product')
+    return render(request, "inventory/add_to_service.html", {"units":units})

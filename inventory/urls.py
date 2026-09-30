@@ -15,5 +15,6 @@ urlpatterns = [
     path('ship/<int:reservation_id>/', views.ship_reservation, name='ship_reservation'),
     path('reservations/history/', views.reservation_history, name = 'reservation_history'),
     path('shipment-registry/', views.shipment_registry, name="shipment_registry"),
+    path('service/add/', views.add_to_service, name= 'add_to_service'),
 
 ]

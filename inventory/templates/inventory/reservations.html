@@ -5,8 +5,7 @@
 <h2>Активные резервы</h2>
 
 
-
-<a class="nav-link" href="{% url 'create_reservation' %}">Добавить резерв</a>
+<a href="{% url 'create_reservation' %}" class="btn btn-secondary btn-lg">Добавить резерв</a>
 {% for reservation in reservations %}
     <div class="card mb-3">
         <div class="card-header">
