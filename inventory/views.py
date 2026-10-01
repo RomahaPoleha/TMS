@@ -252,6 +252,42 @@ def shipment_registry(request):
         reservation__isnull=False).select_related('reservation', 'reservation__client', 'product').order_by('-reservation__created_at')
     return render(request, "inventory/shipment_registry.html", {"units": units})
 
+
 def add_to_service(request):
+    "Добавление в сервис"
+    if request.method == "POST":
+        unit_id = request.POST.get("unit")
+        defect_type = request.POST.get("defect_type")
+        service_comment = request.POST.get("service_comment")
+        serial_number = request.POST.get('serial_number')
+
+
+
+        if not unit_id:
+            messages.error(request, "Выберите устройство")
+            return redirect('add_to_service')
+
+        try:
+            unit = Unit.objects.get(id=unit_id)
+        except Unit.DoesNotExist:
+            messages.error(request, "Устройство не найдено")
+            return redirect('add_to_service')
+        if serial_number:
+            unit.serial_number = serial_number
+
+        if unit.status in ["READY", "IN_STOCK"]:
+            unit.status = 'IN_SERVICE'
+            unit.defect_type = defect_type
+            unit.service_comment = service_comment
+            unit.save()
+            messages.success(request, f"Оборудование отправлено в сервис: {unit.serial_number or 'без серийника'}")
+            return redirect('service')
+        else:
+            messages.error(request, f"Устройство нельзя отправить в сервис (статус: {unit.status})")
+            return redirect('add_to_service')
+
     units = Unit.objects.filter(status__in=['READY', 'IN_STOCK']).select_related('product')
-    return render(request, "inventory/add_to_service.html", {"units":units})
+    return render(request, "inventory/add_to_service.html", {"units": units})
+
+
+
