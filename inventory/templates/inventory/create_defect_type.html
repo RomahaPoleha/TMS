@@ -1,0 +1,16 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2>Добавить тип неисправности</h2>
+<form method="POST">
+    {% csrf_token %}
+
+<div class="mb-3">
+        <label for="defect_type" class="form-label">Неисправность:</label>
+        <input type="text" name="defect_type" id="defect_type" class="form-control" required>
+    </div>
+  <button type="submit" class="btn btn-primary">Добавить неисправность</button>
+  <a href="{% url 'add_to_service' %}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

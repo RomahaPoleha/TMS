@@ -29,10 +29,13 @@
             <input type="text" name="serial_number" id="serial_number" class="form-control">
         </div>
 
-    <div class="mb-3">
-        <label for="defect_type" class="form-label">Неисправность:</label>
-        <input type="text" name="defect_type" id="defect_type" class="form-control" required>
-    </div>
+    <select name="defect_type" class="form-select" required>
+    <option value="">-- Выберите неисправность --</option>
+            {% for dt in defect_types %}
+                <option value="{{ dt.id }}">{{ dt.name }}</option>
+            {% endfor %}
+        </select>
+    <a href="{% url 'create_defect_type' %}" class="btn btn-sm btn-outline-secondary">+ Создать новую неисправность</a>
 
     <div class="mb-3">
         <label for="service_comment" class="form-label">Комментарий:</label>

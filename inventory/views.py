@@ -1,11 +1,11 @@
-
+from Tools.scripts.make_ctype import method
 from django.contrib import messages
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 from django.utils import timezone
-from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client
+from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client , DefectType
 
 
 def main_dashboard(request):
@@ -286,8 +286,30 @@ def add_to_service(request):
             messages.error(request, f"Устройство нельзя отправить в сервис (статус: {unit.status})")
             return redirect('add_to_service')
 
+    defect_types = DefectType.objects.all()
     units = Unit.objects.filter(status__in=['READY', 'IN_STOCK']).select_related('product')
-    return render(request, "inventory/add_to_service.html", {"units": units})
+    return render(request, "inventory/add_to_service.html", {"units": units, "defect_types":defect_types})
 
 
+def create_defect_type(request):
+    """Создание нового типа неисправности"""
+    if request.method == "POST":
+        defect_name = request.POST.get('defect_type')
 
+        # Проверка на пустое поле
+        if not defect_name:
+            messages.error(request, "Поле не может быть пустым")
+            return redirect('create_defect_type')
+
+        # Проверка на дубликат
+        if DefectType.objects.filter(name=defect_name).exists():
+            messages.error(request, f"Тип неисправности '{defect_name}' уже существует")
+            return redirect('create_defect_type')
+
+        # Создаём новую неисправность в справочнике
+        DefectType.objects.create(name=defect_name)
+        messages.success(request, f"Тип неисправности '{defect_name}' успешно добавлен")
+        return redirect('add_to_service')
+
+    # GET-запрос: просто показываем форму
+    return render(request, "inventory/create_defect_type.html")
