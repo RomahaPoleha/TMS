@@ -21,7 +21,7 @@ def main_dashboard(request):
             Subquery(
                 ReservationItem.objects.filter(
                     product=OuterRef('pk'),
-                    reservation__is_fulfilled=False).values("product"
+                    reservation__is_fulfilled=False, reservation__is_canceled=False).values("product"
                 ).annotate(total=Sum('quantity')).values('total')[:1]
             ),
             Value(0)
@@ -95,7 +95,7 @@ def reservation_history(request):
 
 def active_reservations(request):
     """Список неисполненных резервов."""
-    reservations = Reservation.objects.filter(is_fulfilled=False)
+    reservations = Reservation.objects.filter(is_fulfilled=False, is_canceled=False)
     return render(request, "inventory/reservations.html", {"reservations": reservations})
 
 def create_reservation(request):
@@ -257,11 +257,9 @@ def add_to_service(request):
     "Добавление в сервис"
     if request.method == "POST":
         unit_id = request.POST.get("unit")
-        defect_type = request.POST.get("defect_type")
+        defect_type_id = request.POST.get("defect_type")  # ← Переименовал для ясности
         service_comment = request.POST.get("service_comment")
         serial_number = request.POST.get('serial_number')
-
-
 
         if not unit_id:
             messages.error(request, "Выберите устройство")
@@ -272,12 +270,20 @@ def add_to_service(request):
         except Unit.DoesNotExist:
             messages.error(request, "Устройство не найдено")
             return redirect('add_to_service')
+
+        # Получаем объект DefectType по ID
+        try:
+            defect_type = DefectType.objects.get(id=defect_type_id)
+        except DefectType.DoesNotExist:
+            messages.error(request, "Неисправность не найдена")
+            return redirect('add_to_service')
+
         if serial_number:
             unit.serial_number = serial_number
 
         if unit.status in ["READY", "IN_STOCK"]:
             unit.status = 'IN_SERVICE'
-            unit.defect_type = defect_type
+            unit.defect_type = defect_type  # ← Теперь присваиваем объект
             unit.service_comment = service_comment
             unit.save()
             messages.success(request, f"Оборудование отправлено в сервис: {unit.serial_number or 'без серийника'}")
@@ -288,7 +294,7 @@ def add_to_service(request):
 
     defect_types = DefectType.objects.all()
     units = Unit.objects.filter(status__in=['READY', 'IN_STOCK']).select_related('product')
-    return render(request, "inventory/add_to_service.html", {"units": units, "defect_types":defect_types})
+    return render(request, "inventory/add_to_service.html", {"units": units, "defect_types": defect_types})
 
 
 def create_defect_type(request):
@@ -313,3 +319,4 @@ def create_defect_type(request):
 
     # GET-запрос: просто показываем форму
     return render(request, "inventory/create_defect_type.html")
+

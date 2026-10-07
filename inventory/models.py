@@ -21,6 +21,7 @@ class Reservation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания резерва")
     is_fulfilled = models.BooleanField(default=False, verbose_name="Исполнен")
     date_of_shipment = models.DateField(null=True, blank=True, verbose_name="Дата отгрузки")
+    is_canceled = models.BooleanField(default=False, verbose_name="Отменён")
 
     class Meta:
         verbose_name = "Резерв"
@@ -148,6 +149,7 @@ class ReservationItem(models.Model):
     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE, verbose_name="Резервы" )
     product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Товар")
     quantity = models.PositiveIntegerField(verbose_name="Количество в резерве")
+
 
     class Meta:
         verbose_name = "Позиция резерва"
