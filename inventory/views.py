@@ -320,3 +320,27 @@ def create_defect_type(request):
     # GET-запрос: просто показываем форму
     return render(request, "inventory/create_defect_type.html")
 
+
+def cancel_reservation(request, reservation_id):
+    """Отмена резерва"""
+    if request.method == "POST":
+        reservation = Reservation.objects.get(id=reservation_id)
+
+        # Проверяем, не отгружен ли уже резерв
+        if reservation.is_fulfilled:
+            messages.error(request, "Этот резерв уже отгружен")
+            return redirect('reservations')
+
+        # Проверяем, не отменен ли уже
+        if reservation.is_canceled:
+            messages.error(request, "Этот резерв уже отменен")
+            return redirect('reservations')
+
+        # Отменяем резерв
+        reservation.is_canceled = True
+        reservation.save()
+        messages.success(request, "Резерв успешно отменён")
+        return redirect('reservations')
+
+    # Если пришел GET-запрос, просто перенаправляем на список резервов
+    return redirect('reservations')

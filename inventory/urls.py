@@ -16,6 +16,7 @@ urlpatterns = [
     path('reservations/history/', views.reservation_history, name = 'reservation_history'),
     path('shipment-registry/', views.shipment_registry, name="shipment_registry"),
     path('service/add/', views.add_to_service, name= 'add_to_service'),
-    path('defect-type/add/', views.create_defect_type, name = 'create_defect_type')
+    path('defect-type/add/', views.create_defect_type, name = 'create_defect_type'),
+    path('cancel/<int:reservation_id>/', views.cancel_reservation, name='cancel_reservation'),
 
 ]

@@ -4,45 +4,41 @@
 
 <h2>Активные резервы</h2>
 
+<a href="{% url 'create_reservation' %}" class="btn btn-secondary btn-lg mb-3">Добавить резерв</a>
 
-<a href="{% url 'create_reservation' %}" class="btn btn-secondary btn-lg">Добавить резерв</a>
 {% for reservation in reservations %}
     <div class="card mb-3">
-        <div class="card-header">
-            <strong>Резерв #{{ reservation.id }}</strong>
-            {{ reservation.client }} —
-            {{ reservation.created_at }}
-            <td>
-    <!-- Другие содержимое ячейки -->
-    <div style="text-align: right;">
-        <a href="{% url 'ship_reservation' reservation.id %}" class="btn btn-primary btn-sm">Отгрузить</a>
-    </div>
-</td>
-
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <strong>Резерв #{{ reservation.id }}</strong>
+                {{ reservation.client }} —
+                {{ reservation.created_at|date:"d.m.Y H:i" }}
+            </div>
+            <div>
+                <a href="{% url 'ship_reservation' reservation.id %}" class="btn btn-primary btn-sm me-2">Отгрузить</a>
+                <form method="POST" action="{% url 'cancel_reservation' reservation.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Вы уверены, что хотите отменить этот резерв?')">Отменить резерв</button>
+                </form>
+            </div>
         </div>
         <table class="table mb-0">
             <thead>
                 <tr>
                     <th>Товар</th>
                     <th>Количество</th>
-
                 </tr>
             </thead>
             <tbody>
                 {% for item in reservation.reservationitem_set.all %}
                 <tr>
-                    <td>{{ item.product }} </td>
+                    <td>{{ item.product }}</td>
                     <td>{{ item.quantity }}</td>
-
-
-
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 {% endfor %}
-
-
 
 {% endblock %}
