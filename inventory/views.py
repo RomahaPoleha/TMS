@@ -344,3 +344,42 @@ def cancel_reservation(request, reservation_id):
 
     # Если пришел GET-запрос, просто перенаправляем на список резервов
     return redirect('reservations')
+
+
+from django.shortcuts import get_object_or_404, render, redirect
+from django.contrib import messages
+
+
+def edit_unit(request, unit_id):
+    # 1. Получаем конкретный объект.
+    # get_object_or_404 сам выдаст красивую ошибку 404, если такого ID нет в базе.
+    unit = get_object_or_404(Unit, id=unit_id)
+
+    # 2. Проверка статуса (одинаковая для GET и POST, поэтому выносим наверх)
+    if unit.status in ["SOLD", "IN_SERVICE"]:
+        messages.error(request, "Редактировать проданное или находящееся в ремонте устройство нельзя")
+        return redirect('unit_list')
+
+    # 3. Обработка POST-запроса
+    if request.method == "POST":
+        serial_number = request.POST.get('serial_number')
+
+        # Небольшая защита: не даем сохранить пустой серийник
+        if not serial_number:
+            messages.error(request, "Серийный номер не может быть пустым")
+            return redirect('edit_unit', unit_id=unit_id)
+
+        unit.serial_number = serial_number
+        unit.save()
+        messages.success(request, "Данные успешно изменены")
+        return redirect('unit_list')
+
+    # 4. GET-запрос: просто показываем форму
+    return render(request, "inventory/edit_unit.html", {"unit": unit})
+
+def delete_unit(request, unit_id):
+    unit = Unit.objects.filter(id=unit_id)
+    if request.method == "POST":
+        if unit.status in ["SOLD", "IN_SERVICE"]:
+            messages.error(request, f"Удалить проданное или в ремонте нельзя")
+
