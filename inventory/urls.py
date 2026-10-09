@@ -18,5 +18,7 @@ urlpatterns = [
     path('service/add/', views.add_to_service, name= 'add_to_service'),
     path('defect-type/add/', views.create_defect_type, name = 'create_defect_type'),
     path('cancel/<int:reservation_id>/', views.cancel_reservation, name='cancel_reservation'),
+    path('unit/<int:unit_id>/edit/', views.edit_unit, name='edit_unit'),
+    path('unit/<int:unit_id>/delete/', views.delete_unit, name='delete_unit'),
 
 ]

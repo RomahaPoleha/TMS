@@ -1,12 +1,10 @@
-from Tools.scripts.make_ctype import method
-from django.contrib import messages
 from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
-from django.shortcuts import render, redirect
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 from django.utils import timezone
 from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client , DefectType
-
+from django.shortcuts import get_object_or_404, render, redirect
+from django.contrib import messages
 
 def main_dashboard(request):
     """Сводная таблица по товарам: наличие, резервы, сервис, доступность."""
@@ -346,8 +344,7 @@ def cancel_reservation(request, reservation_id):
     return redirect('reservations')
 
 
-from django.shortcuts import get_object_or_404, render, redirect
-from django.contrib import messages
+
 
 
 def edit_unit(request, unit_id):
@@ -377,9 +374,20 @@ def edit_unit(request, unit_id):
     # 4. GET-запрос: просто показываем форму
     return render(request, "inventory/edit_unit.html", {"unit": unit})
 
-def delete_unit(request, unit_id):
-    unit = Unit.objects.filter(id=unit_id)
-    if request.method == "POST":
-        if unit.status in ["SOLD", "IN_SERVICE"]:
-            messages.error(request, f"Удалить проданное или в ремонте нельзя")
 
+def delete_unit(request, unit_id):
+    unit = get_object_or_404(Unit, id=unit_id)
+
+    # Проверка безопасности
+    if unit.status in ["SOLD", "IN_SERVICE"]:
+        messages.error(request, "Удалить проданное или находящееся в ремонте устройство нельзя")
+        return redirect('unit_list')
+
+    # Обработка POST-запроса (удаление)
+    if request.method == "POST":
+        unit.delete()
+        messages.success(request, "Устройство успешно удалено")
+        return redirect('unit_list')
+
+    # Защита от GET-запроса (просто возвращаем на список)
+    return redirect('unit_list')
