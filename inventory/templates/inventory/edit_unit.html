@@ -2,5 +2,30 @@
 
 {% block content %}
 
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<h2>Редактирование устройства</h2>
+<h3>Текущий серийный номер: {{ unit.serial_number }}</h3>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label for="serial_number" class="form-label">Серийный номер:</label>
+        <input type="text"
+               name="serial_number"
+               id="serial_number"
+               class="form-control"
+               value="{{ unit.serial_number }}"
+               required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <a href="{% url 'unit_list' %}" class="btn btn-secondary">Отмена</a>
+</form>
 
 {% endblock %}

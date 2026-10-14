@@ -223,6 +223,7 @@ def prepare_product(request, product_id):
 
 # Завершение серивиса(смена статуса)
 def finish_service(request, unit_id):
+    """Перенос оборудования из сервиса (ремонт закончен)"""
     # Защита: принимаем только POST
     if request.method != "POST":
         return redirect('service')
@@ -348,6 +349,7 @@ def cancel_reservation(request, reservation_id):
 
 
 def edit_unit(request, unit_id):
+    """Редактирование позиции на складе"""
     # 1. Получаем конкретный объект.
     # get_object_or_404 сам выдаст красивую ошибку 404, если такого ID нет в базе.
     unit = get_object_or_404(Unit, id=unit_id)
@@ -376,18 +378,20 @@ def edit_unit(request, unit_id):
 
 
 def delete_unit(request, unit_id):
+    """Удаление позиции со склада"""
     unit = get_object_or_404(Unit, id=unit_id)
-
     # Проверка безопасности
     if unit.status in ["SOLD", "IN_SERVICE"]:
         messages.error(request, "Удалить проданное или находящееся в ремонте устройство нельзя")
         return redirect('unit_list')
-
     # Обработка POST-запроса (удаление)
     if request.method == "POST":
         unit.delete()
         messages.success(request, "Устройство успешно удалено")
         return redirect('unit_list')
-
     # Защита от GET-запроса (просто возвращаем на список)
     return redirect('unit_list')
+
+def unit_list(request):
+    units = Unit.objects.all().order_by('-created_at').select_related('product')
+    return render(request, "inventory/unit_list.html", {"units": units})
