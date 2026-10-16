@@ -13,7 +13,16 @@
 
 <form method="POST">
     {% csrf_token %}
-
+        <div class="mb-3">
+        <label for="product" class="form-label">Товар:</label>
+        <select name="product" id="product" class="form-select" required>
+            {% for product in products %}
+                <option value="{{ product.id }}" {% if product.id == unit.product.id %}selected{% endif %}>
+                    {{ product.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
     <div class="mb-3">
         <label for="serial_number" class="form-label">Серийный номер:</label>
         <input type="text"

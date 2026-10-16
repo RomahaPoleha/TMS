@@ -1,6 +1,41 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
+<h2>Список устройств</h2>
 
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<table class="table table-striped table-hover table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Товар</th>
+            <th>Серийный номер</th>
+            <th>Статус</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for unit in units %}
+        <tr>
+            <td>{{ unit.id }}</td>
+            <td>{{ unit.product }}</td>
+            <td>{% if unit.serial_number %}{{ unit.serial_number }}{% else %}(без серийника){% endif %}</td>
+            <td>{{ unit.status }}</td>
+            <td>
+                <a href="{% url 'edit_unit' unit.id %}" class="btn btn-sm btn-outline-primary me-1">Редактировать</a>
+                <form method="POST" action="{% url 'delete_unit' unit.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить устройство?')">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 {% endblock %}

@@ -353,28 +353,45 @@ def edit_unit(request, unit_id):
     # 1. Получаем конкретный объект.
     # get_object_or_404 сам выдаст красивую ошибку 404, если такого ID нет в базе.
     unit = get_object_or_404(Unit, id=unit_id)
-
+    products = Product.objects.all()
     # 2. Проверка статуса (одинаковая для GET и POST, поэтому выносим наверх)
     if unit.status in ["SOLD", "IN_SERVICE"]:
         messages.error(request, "Редактировать проданное или находящееся в ремонте устройство нельзя")
         return redirect('unit_list')
 
-    # 3. Обработка POST-запроса
     if request.method == "POST":
         serial_number = request.POST.get('serial_number')
+        product_id = request.POST.get('product')
 
-        # Небольшая защита: не даем сохранить пустой серийник
+        # Валидация
         if not serial_number:
             messages.error(request, "Серийный номер не может быть пустым")
             return redirect('edit_unit', unit_id=unit_id)
 
+        if not product_id:
+            messages.error(request, "Выберите товар")
+            return redirect('edit_unit', unit_id=unit_id)
+
+        # Получаем объект Product
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            messages.error(request, "Товар не найден")
+            return redirect('edit_unit', unit_id=unit_id)
+
+        # Обновляем поля
         unit.serial_number = serial_number
+        unit.product = product
         unit.save()
+
         messages.success(request, "Данные успешно изменены")
         return redirect('unit_list')
 
     # 4. GET-запрос: просто показываем форму
-    return render(request, "inventory/edit_unit.html", {"unit": unit})
+    return render(request, "inventory/edit_unit.html", {
+        "unit": unit,
+        "products": products
+    })
 
 
 def delete_unit(request, unit_id):
