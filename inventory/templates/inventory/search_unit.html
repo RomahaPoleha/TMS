@@ -1,0 +1,34 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+
+<h2>Результаты поиска по запросу: {{ query }}</h2>
+
+{% if units %}
+<table class="table table-striped table-hover table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Товар</th>
+            <th>Серийный номер</th>
+            <th>Статус</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for unit in units %}
+        <tr>
+            <td>{{ unit.id }}</td>
+            <td>{{ unit.product }}</td>
+            <td>{{ unit.serial_number }}</td>
+            <td>{{ unit.status }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-warning">
+    Ничего не найдено по запросу "{{ query }}"
+</div>
+{% endif %}
+
+{% endblock %}

@@ -26,6 +26,10 @@
             </div>
         </div>
     </nav>
+    <form class="d-flex" action="{% url 'search_unit' %}" method="GET">
+    <input type="text" name="q" class="form-control form-control-sm me-2" placeholder="Поиск по серийному номеру..." value="{{ request.GET.q }}">
+    <button type="submit" class="btn btn-outline-primary btn-sm">Найти</button>
+    </form>
 
     <!-- Основной контент -->
     <div class="container">

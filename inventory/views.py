@@ -414,11 +414,12 @@ def unit_list(request):
     return render(request, "inventory/unit_list.html", {"units": units})
 
 def search_unit(request):
-    query = request.GET('q','')
+    query = request.GET.get('q', '')
     if not query:
         return redirect('dashboard')
-    units = Unit.objects.filter(serial_number__icontains=query).select_related('product')  # Метод icontains ищет частичное совпадение без учёта регистра
+    units = Unit.objects.filter(serial_number__icontains=query).select_related('product')
+
     return render(request, 'inventory/search_unit.html', {
-        'query':query,
-        'units':units}
-    )
+        'query': query,
+        'units': units
+    })

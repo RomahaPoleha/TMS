@@ -21,5 +21,6 @@ urlpatterns = [
     path('unit/<int:unit_id>/edit/', views.edit_unit, name='edit_unit'),
     path('unit/<int:unit_id>/delete/', views.delete_unit, name='delete_unit'),
     path('units/', views.unit_list, name = 'unit_list'),
+    path('search/', views.search_unit, name = 'search_unit')
 
 ]
