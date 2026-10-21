@@ -136,8 +136,12 @@ def create_reservation(request):
 
 def active_service(request):
     """Устройства в ремонте, отсортированные по дате приёма."""
+    query = request.GET.get('q', '')
     units = Unit.objects.filter(status="IN_SERVICE").order_by('service_received_at')
-    return render(request, "inventory/service.html", {"units": units})
+    if query:
+        units = units.filter(serial_number__icontains=query)
+    units = units.order_by('service_received_at')
+    return render(request, "inventory/service.html", {"units": units, "query": query})
 
 
 
