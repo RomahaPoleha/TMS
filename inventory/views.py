@@ -249,11 +249,17 @@ def finish_service(request, unit_id):
 
 
 def shipment_registry(request):
-    """История отгруженных серийников"""
+    """История отгруженных серийников с возможностью поиска."""
+    query = request.GET.get('q', '')
     units = Unit.objects.filter(
-        status = "SOLD",
-        reservation__isnull=False).select_related('reservation', 'reservation__client', 'product').order_by('-reservation__created_at')
-    return render(request, "inventory/shipment_registry.html", {"units": units})
+        status="SOLD",
+        reservation__isnull=False
+    ).select_related('reservation', 'reservation__client', 'product').order_by('-reservation__created_at')
+
+    if query:
+        units = units.filter(serial_number__icontains=query)
+
+    return render(request, "inventory/shipment_registry.html", {"units": units, "query": query})
 
 
 def add_to_service(request):
@@ -413,9 +419,16 @@ def delete_unit(request, unit_id):
     # Защита от GET-запроса (просто возвращаем на список)
     return redirect('unit_list')
 
+
 def unit_list(request):
+    """Список всех устройств с возможностью поиска."""
+    query = request.GET.get('q', '')
     units = Unit.objects.all().order_by('-created_at').select_related('product')
-    return render(request, "inventory/unit_list.html", {"units": units})
+
+    if query:
+        units = units.filter(serial_number__icontains=query)
+
+    return render(request, "inventory/unit_list.html", {"units": units, "query": query})
 
 def search_unit(request):
     query = request.GET.get('q', '')

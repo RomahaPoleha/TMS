@@ -2,6 +2,15 @@
 
 {% block content %}
 <h2>Реестр отгрузок</h2>
+<form method="GET" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="Поиск по серийному номеру..." value="{{ query }}">
+        <button type="submit" class="btn btn-outline-primary">Найти</button>
+        {% if query %}
+            <a href="{{ request.path }}" class="btn btn-outline-secondary">Сбросить</a>
+        {% endif %}
+    </div>
+</form>
 
 <table class="table table-striped table-hover table-bordered">
     <thead>
