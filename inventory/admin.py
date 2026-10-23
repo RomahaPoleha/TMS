@@ -1,5 +1,5 @@
 from django.contrib import admin
-from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment,  ShipmentItem, ReservationItem
+from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment,  ShipmentItem, ReservationItem, Kit, KitComponent
 
 
 class UnitInline(admin.TabularInline):
@@ -62,6 +62,21 @@ class ShipmentAdmin(admin.ModelAdmin):
             shipment.reservation.is_fulfilled = True
             shipment.reservation.save()
 
+
+# Это «встроенная форма» для редактирования компонентов прямо на странице комплекта.
+class KitComponentInline(admin.TabularInline):
+    model = KitComponent
+    extra = 1 # Сколько пустых строк показывать внизу для добавления новых компонентов. 1 = одна пустая строка для нового компонента
+
+@admin.register(Kit)
+class KitAdmin(admin.ModelAdmin):
+    inlines = [KitComponentInline]
+    list_display = ["name", "code", "is_active", "created_at"]
+    list_filter = ["is_active"]
+
+@admin.register(KitComponent)
+class KitComponentAdmin(admin.ModelAdmin):
+    list_display = ["kit", "product", "quantity"]
 
 
 # Регистрация в админке моделей

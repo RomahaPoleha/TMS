@@ -2,7 +2,7 @@ from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 from django.utils import timezone
-from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client , DefectType
+from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client , DefectType, Kit
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 
@@ -440,3 +440,20 @@ def search_unit(request):
         'query': query,
         'units': units
     })
+
+
+
+def create_assembly(request):
+    """Сборка комплекта из готовых устройств"""
+    kits = Kit.objects.filter(is_active = True)
+    selected_kit = None
+    components_data = []
+
+    if request.method == "POST":
+        kit_id = request.POST.get('kit')
+        if not kit_id:
+            messages.error(request, "Выбирите комплект")
+            return redirect("create_assembly")
+
+        selected_kit = get_object_or_404(Kit, id = kit_id)
+        components = selected_kit.components.all()

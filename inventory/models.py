@@ -1,3 +1,6 @@
+
+
+from django.db.models import CharField, PROTECT, CASCADE
 from django.utils import timezone
 from django.db import models
 from django.core.exceptions import ValidationError
@@ -200,3 +203,33 @@ class ShipmentItem(models.Model):
         if existing_items.exists():
             raise ValidationError({"unit": "Этот Unit уже отгружен"})
 
+from django.db import models
+from django.db.models import CASCADE, PROTECT
+
+class Kit(models.Model):
+    name = models.CharField(max_length=200, unique=True, verbose_name="Название комплекта")
+    code = models.CharField(max_length=50, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Комплект"
+        verbose_name_plural = "Комплекты"
+
+    def __str__(self):
+        return self.name
+
+
+class KitComponent(models.Model):
+    kit = models.ForeignKey(Kit, on_delete=CASCADE, related_name="components")
+    product = models.ForeignKey(Product, on_delete=PROTECT, related_name="kit_components")
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Количество в комплекте")
+
+    class Meta:
+        verbose_name = "Компонент комплекта"
+        verbose_name_plural = "Компоненты комплектов"
+        unique_together = ("kit", "product")
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.kit.name} — {self.product.name} × {self.quantity}"
