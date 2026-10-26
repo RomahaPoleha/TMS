@@ -24,7 +24,7 @@
 
     <div class="mb-3">
         <label for="equipment_type" class="form-label">Тип оборудования:</label>
-        <select class="form-select" id="equipment_type" name="equipment_type" required>
+        <select class="form-select" id="equipment_type" name="equipment_type">
             <option value="">-- Выберите тип --</option>
             {% for et in equipment_types %}
                 <option value="{{ et.id }}" {% if et.id == selected_equipment_type_id %}selected{% endif %}>
@@ -33,6 +33,20 @@
             {% endfor %}
         </select>
     </div>
+        <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="requires_serial" name="requires_serial" checked>
+        <label class="form-check-label" for="requires_serial">
+            Требует серийного номера
+        </label>
+        <small class="form-text text-muted d-block">
+            Снимите галочку для расходных материалов (створки, крепления, кабели)
+        </small>
+    </div>
+    <div class="mb-3">
+    <label for="new_equipment_type" class="form-label">Или создайте новый тип:</label>
+    <input type="text" name="new_equipment_type" id="new_equipment_type" class="form-control" placeholder="Например: Интерактивные панели">
+    <small class="form-text text-muted">Если нужного типа нет в списке, введите его название здесь</small>
+</div>
 
     <button type="submit" class="btn btn-primary">Создать товар</button>
     <a href="{% url 'add_units' %}" class="btn btn-secondary">Отмена</a>

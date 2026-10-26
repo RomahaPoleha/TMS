@@ -2,7 +2,7 @@ from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 from django.utils import timezone
-from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client , DefectType, Kit
+from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client , DefectType, Kit, Assembly, AssemblyUnit
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 
@@ -43,22 +43,42 @@ def ship_reservation(request, reservation_id):
     if request.method == "POST":
         # Проходим по всем позициям резерва
         for item in reservation_items:
-            selected_ids = request.POST.getlist(f'unit_{item.id}')
+            # Если товар не требует серийника — просто списываем нужное количество
+            if not item.product.requires_serial:
+                units_to_ship = Unit.objects.filter(
+                    product=item.product,
+                    status="READY"
+                )[:item.quantity]
 
-            # Проверяем, что выбрано правильное количество устройств
-            if len(selected_ids) != item.quantity:
-                messages.error(
-                    request,
-                    f"Для товара {item.product} нужно выбрать {item.quantity} шт., выбрано {len(selected_ids)}"
-                )
-                return redirect('ship_reservation', reservation_id=reservation_id)
+                if len(units_to_ship) < item.quantity:
+                    messages.error(
+                        request,
+                        f"Недостаточно товара {item.product.name} на складе (нужно {item.quantity}, есть {len(units_to_ship)})"
+                    )
+                    return redirect('ship_reservation', reservation_id=reservation_id)
 
-            # Меняем статус каждого выбранного Unit на SOLD
-            for unit_id in selected_ids:
-                unit = Unit.objects.get(id=unit_id)
-                unit.reservation=reservation # привязка Unit к текущему резерву через новое поле
-                unit.status = 'SOLD'
-                unit.save()
+                for unit in units_to_ship:
+                    unit.reservation = reservation
+                    unit.status = 'SOLD'
+                    unit.save()
+            else:
+                # Для маркируемых товаров — обычный выбор конкретных Unit'ов
+                selected_ids = request.POST.getlist(f'unit_{item.id}')
+
+                # Проверяем, что выбрано правильное количество устройств
+                if len(selected_ids) != item.quantity:
+                    messages.error(
+                        request,
+                        f"Для товара {item.product} нужно выбрать {item.quantity} шт., выбрано {len(selected_ids)}"
+                    )
+                    return redirect('ship_reservation', reservation_id=reservation_id)
+
+                # Меняем статус каждого выбранного Unit на SOLD
+                for unit_id in selected_ids:
+                    unit = Unit.objects.get(id=unit_id)
+                    unit.reservation = reservation
+                    unit.status = 'SOLD'
+                    unit.save()
 
         # Помечаем резерв как исполненный
         reservation.is_fulfilled = True
@@ -144,58 +164,99 @@ def active_service(request):
     return render(request, "inventory/service.html", {"units": units, "query": query})
 
 
-
-
 def add_units(request):
-    """Приёмка партии: создание N Unit'ов без серийников."""
+    """Приёмка партии: создание N Unit'ов."""
+    products = Product.objects.all()
+
     if request.method == "POST":
         product = Product.objects.get(id=request.POST.get('product'))
         quantity = int(request.POST.get('quantity'))
 
+        # Если товар не требует серийника — сразу READY
+        initial_status = "READY" if not product.requires_serial else "IN_STOCK"
+
         for _ in range(quantity):
-            Unit.objects.create(product=product, status="IN_STOCK")
+            Unit.objects.create(product=product, status=initial_status)
 
-
+        messages.success(request, f"Принято {quantity} шт. товара '{product.name}'")
         return redirect("dashboard")
 
-    return render(request, "inventory/add_units.html", {"products": Product.objects.all()})
+    return render(request, "inventory/add_units.html", {"products": products})
 
 
 def add_product(request):
-    """Создание номенклатуры с проверкой дублей."""
+    """Создание номенклатуры с возможностью создать новый тип оборудования"""
     equipment_types = EquipmentType.objects.all()
 
     if request.method == "POST":
         name = request.POST.get('name')
         equipment_type_id = request.POST.get('equipment_type')
+        new_equipment_type_name = request.POST.get('new_equipment_type')
 
-        if not name or not equipment_type_id:
+        # Валидация названия товара
+        if not name:
             return render(request, "inventory/add_product.html", {
                 "equipment_types": equipment_types,
-                "error": "Заполните все поля",
+                "error": "Введите название товара",
             })
 
+        # Проверка дубликата товара
         if Product.objects.filter(name=name).exists():
             return render(request, "inventory/add_product.html", {
                 "equipment_types": equipment_types,
                 "error": "Товар с таким названием уже существует",
             })
 
+        # Определяем тип оборудования
+        equipment_type = None
+
+        # Вариант 1: Выбран существующий тип из списка
+        if equipment_type_id:
+            try:
+                equipment_type = EquipmentType.objects.get(id=equipment_type_id)
+            except EquipmentType.DoesNotExist:
+                return render(request, "inventory/add_product.html", {
+                    "equipment_types": equipment_types,
+                    "error": "Выбранный тип оборудования не найден",
+                })
+
+        # Вариант 2: Введено название нового типа
+        elif new_equipment_type_name:
+            # Проверяем, нет ли уже такого типа
+            if EquipmentType.objects.filter(name=new_equipment_type_name).exists():
+                return render(request, "inventory/add_product.html", {
+                    "equipment_types": equipment_types,
+                    "error": f"Тип оборудования '{new_equipment_type_name}' уже существует. Выберите его из списка.",
+                })
+            # Создаём новый тип
+            equipment_type = EquipmentType.objects.create(name=new_equipment_type_name)
+
+        # Если не выбрано ни то, ни другое
+        else:
+            return render(request, "inventory/add_product.html", {
+                "equipment_types": equipment_types,
+                "error": "Выберите тип оборудования из списка или введите название нового типа",
+            })
+
+        # Создаём товар
+        requires_serial = request.POST.get('requires_serial') == 'on'
         Product.objects.create(
             name=name,
-            equipment_type=EquipmentType.objects.get(id=equipment_type_id)
+            equipment_type=equipment_type,
+            requires_serial=requires_serial
         )
+        messages.success(request, f"Товар '{name}' успешно создан")
         return redirect('add_units')
 
+    # GET-запрос: показываем форму
     return render(request, "inventory/add_product.html", {"equipment_types": equipment_types})
 
 
 def prepare_list(request):
-    """Товары с Unit'ами без серийников (статус IN_STOCK)."""
+    """Товары с Unit'ами без серийников (только маркируемые)."""
     products = Product.objects.annotate(
         units_to_prepare=Count('unit', filter=Q(unit__status='IN_STOCK'))
-    ).filter(units_to_prepare__gt=0)
-
+    ).filter(units_to_prepare__gt=0, requires_serial=True)  # ← добавили фильтр
     return render(request, "inventory/prepare_list.html", {"products": products})
 
 
@@ -443,17 +504,116 @@ def search_unit(request):
 
 
 
+
+
 def create_assembly(request):
-    """Сборка комплекта из готовых устройств"""
-    kits = Kit.objects.filter(is_active = True)
+    """Сборка комплекта из устройств (готовых и неготовых)"""
+    kits = Kit.objects.filter(is_active=True)
     selected_kit = None
     components_data = []
 
     if request.method == "POST":
         kit_id = request.POST.get('kit')
         if not kit_id:
-            messages.error(request, "Выбирите комплект")
-            return redirect("create_assembly")
+            messages.error(request, "Выберите комплект")
+            return redirect('create_assembly')
 
-        selected_kit = get_object_or_404(Kit, id = kit_id)
+        selected_kit = get_object_or_404(Kit, id=kit_id)
         components = selected_kit.components.all()
+
+        assembly_units_to_create = []
+        used_unit_ids = set()  # ← для проверки дубликатов
+        error_found = False
+
+        for component in components:
+            selected_unit_ids = request.POST.getlist(f'component_{component.id}')
+
+            # Фильтруем пустые значения
+            selected_unit_ids = [uid for uid in selected_unit_ids if uid]
+
+            # Проверка: выбрано ли правильное количество РЕАЛЬНЫХ устройств
+            if len(selected_unit_ids) != component.quantity:
+                messages.error(
+                    request,
+                    f"Для '{component.product.name}' нужно выбрать ровно {component.quantity} шт. (выбрано {len(selected_unit_ids)})"
+                )
+                error_found = True
+                break
+
+            for unit_id in selected_unit_ids:
+                # Проверка на дубликаты
+                if unit_id in used_unit_ids:
+                    messages.error(
+                        request,
+                        f"Устройство ID {unit_id} выбрано несколько раз. Выберите разные устройства."
+                    )
+                    error_found = True
+                    break
+                used_unit_ids.add(unit_id)
+
+                try:
+                    unit = Unit.objects.get(id=unit_id)
+
+                    if unit.status not in ["IN_STOCK", "READY"]:
+                        messages.error(
+                            request,
+                            f"Устройство {unit.serial_number or unit.id} имеет статус {unit.status}, а нужен IN_STOCK или READY"
+                        )
+                        error_found = True
+                        break
+
+                    if unit.status == "IN_STOCK":
+                        if unit.product.requires_serial:
+                            serial = request.POST.get(f'serial_{unit_id}')
+                            if not serial:
+                                messages.error(request, f"Для устройства {unit.id} нужно ввести серийный номер")
+                                error_found = True
+                                break
+                            unit.serial_number = serial
+                        unit.status = "READY"
+                        unit.save()
+
+                    assembly_units_to_create.append(unit)
+                except Unit.DoesNotExist:
+                    messages.error(request, f"Устройство ID {unit_id} не найдено")
+                    error_found = True
+                    break
+
+            if error_found:
+                break
+
+        if not error_found and assembly_units_to_create:
+            assembly = Assembly.objects.create(kit=selected_kit, status="READY")
+
+            for unit in assembly_units_to_create:
+                unit.status = "ASSEMBLED"
+                unit.save()
+                AssemblyUnit.objects.create(assembly=assembly, unit=unit)
+
+            messages.success(request, f"Сборка #{assembly.id} успешно создана!")
+            return redirect('dashboard')
+
+        # Если ошибка не была показана, но сборка не создана — редирект с ошибкой
+        if error_found:
+            return redirect('create_assembly')
+
+    # GET-запрос: подготовка данных для формы
+    kit_id = request.GET.get('kit')
+    if kit_id:
+        selected_kit = get_object_or_404(Kit, id=kit_id)
+        for component in selected_kit.components.all():
+            available_units = Unit.objects.filter(
+                product=component.product,
+                status__in=["IN_STOCK", "READY"]
+            )
+            components_data.append({
+                "component": component,
+                "available_units": available_units,
+                "quantity_range": range(component.quantity)
+            })
+
+    return render(request, "inventory/create_assembly.html", {
+        "kits": kits,
+        "selected_kit": selected_kit,
+        "components_data": components_data
+    })

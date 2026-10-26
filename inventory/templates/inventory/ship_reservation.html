@@ -1,29 +1,50 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-<h2>Отгрузка для {{ reservation.client }}</h2>
-<p>Дата создания резерва: {{ reservation.created_at|date:"d.m.Y" }}</p>
+<h2>Отгрузка резерва #{{ reservation.id }}</h2>
+<p><strong>Клиент:</strong> {{ reservation.client }}</p>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
 
 <form method="POST">
     {% csrf_token %}
 
-    {% for item_data in items_with_units %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">{{ item_data.item.product }} <span class="badge bg-primary">Нужно: {{ item_data.item.quantity }} шт.</span></h5>
+    {% for data in items_with_units %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ data.item.product.name }}</strong> — {{ data.item.quantity }} шт.
+                </div>
+                {% if not data.item.product.requires_serial %}
+                    <span class="badge bg-info">Без серийников</span>
+                {% endif %}
             </div>
             <div class="card-body">
-                {% for i in item_data.quantity_range %}
-                    <div class="mb-3">
-                        <label class="form-label">Устройство {{ forloop.counter }}:</label>
-                        <select name="unit_{{ item_data.item.id }}" class="form-select" required>
-                            <option value="">-- Выберите серийный номер --</option>
-                            {% for unit in item_data.available_units %}
-                                <option value="{{ unit.id }}">{{ unit.serial_number }}</option>
-                            {% endfor %}
-                        </select>
+                {% if data.item.product.requires_serial %}
+                    <!-- Для маркируемых: выбор конкретных Unit'ов -->
+                    <div class="row">
+                        {% for i in data.quantity_range %}
+                            <div class="col-md-4 mb-2">
+                                <label class="form-label small">Экземпляр {{ forloop.counter }}</label>
+                                <select name="unit_{{ data.item.id }}" class="form-select" required>
+                                    <option value="">-- Выберите устройство --</option>
+                                    {% for unit in data.available_units %}
+                                        <option value="{{ unit.id }}">{{ unit.serial_number }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endfor %}
                     </div>
-                {% endfor %}
+                {% else %}
+                    <!-- Для немаркируемых: просто информация -->
+                    <div class="alert alert-info mb-0">
+                        Система автоматически спишет {{ data.item.quantity }} шт. со склада.
+                    </div>
+                {% endif %}
             </div>
         </div>
     {% endfor %}
@@ -31,4 +52,5 @@
     <button type="submit" class="btn btn-success btn-lg">Подтвердить отгрузку</button>
     <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">Отмена</a>
 </form>
+
 {% endblock %}

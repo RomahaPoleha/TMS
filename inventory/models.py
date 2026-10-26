@@ -48,8 +48,12 @@ class EquipmentType(models.Model):
 
 # Модель/наименование товара (справочник)
 class Product(models.Model):
-    name = models.CharField(max_length=100, verbose_name="Наименование")
-    equipment_type = models.ForeignKey(EquipmentType, on_delete=models.CASCADE, verbose_name = "Тип оборудования")
+    name = models.CharField(max_length=200, unique=True, verbose_name="Наименование")
+    equipment_type = models.ForeignKey(EquipmentType, on_delete=models.PROTECT, verbose_name="Тип оборудования")
+    requires_serial = models.BooleanField(
+        default=True,
+        verbose_name="Требует серийного номера",
+        help_text="Отметьте, если каждое устройство должно иметь уникальный серийный номер")
 
     class Meta:
         verbose_name = "Товар"
@@ -203,8 +207,7 @@ class ShipmentItem(models.Model):
         if existing_items.exists():
             raise ValidationError({"unit": "Этот Unit уже отгружен"})
 
-from django.db import models
-from django.db.models import CASCADE, PROTECT
+
 
 class Kit(models.Model):
     name = models.CharField(max_length=200, unique=True, verbose_name="Название комплекта")
@@ -233,3 +236,36 @@ class KitComponent(models.Model):
 
     def __str__(self):
         return f"{self.kit.name} — {self.product.name} × {self.quantity}"
+
+
+class Assembly(models.Model):
+    """Готовая физическая сборка комплекта"""
+    kit = models.ForeignKey(Kit, on_delete=models.PROTECT, verbose_name="Комплект")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата сборки")
+    status = models.CharField(
+        max_length=20,
+        choices=[("READY", "Готов к продаже"), ("SOLD", "Продан")],
+        default="READY",
+        verbose_name="Статус сборки"
+    )
+
+    class Meta:
+        verbose_name = "Сборка"
+        verbose_name_plural = "Сборки"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Сборка #{self.id} ({self.kit.name}) - {self.get_status_display()}"
+
+
+class AssemblyUnit(models.Model):
+    """Связь сборки с конкретными физическими устройствами (Unit)"""
+    assembly = models.ForeignKey(Assembly, on_delete=models.CASCADE, related_name="units")
+    unit = models.ForeignKey(Unit, on_delete=models.PROTECT, unique=True, verbose_name="Устройство")
+
+    class Meta:
+        verbose_name = "Компонент сборки"
+        verbose_name_plural = "Компоненты сборок"
+
+    def __str__(self):
+        return f"{self.assembly.kit.name} -> {self.unit.product.name} ({self.unit.serial_number or 'б/н'})"
