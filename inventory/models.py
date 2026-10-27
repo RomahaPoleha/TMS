@@ -214,6 +214,9 @@ class Kit(models.Model):
     code = models.CharField(max_length=50, blank=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    equipment_type = models.ForeignKey(EquipmentType,
+        on_delete= models.PROTECT,
+        verbose_name="Тип оборудования")
 
     class Meta:
         verbose_name = "Комплект"
@@ -244,11 +247,22 @@ class Assembly(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата сборки")
     status = models.CharField(
         max_length=20,
-        choices=[("READY", "Готов к продаже"), ("SOLD", "Продан")],
+        choices=[
+            ("READY", "Готов к продаже"),
+            ("RESERVED", "Забронирован"),
+            ("IN_SERVICE", "В сервисе"),
+            ("SOLD", "Продан")
+        ],
         default="READY",
         verbose_name="Статус сборки"
     )
-
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Резерв"
+    )
     class Meta:
         verbose_name = "Сборка"
         verbose_name_plural = "Сборки"

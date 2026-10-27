@@ -6,33 +6,49 @@ from inventory.models import Product, Reservation, ReservationItem, Unit, Equipm
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 
+
 def main_dashboard(request):
-    """Сводная таблица по товарам: наличие, резервы, сервис, доступность."""
+    """Сводная таблица по товарам и комплексам."""
+
+    # 1. Подсчёт по товарам
     products = Product.objects.annotate(
         total_count=Count("unit", filter=Q(unit__status__in=["IN_STOCK", "READY", "IN_SERVICE"])),
         ready_count=Count("unit", filter=Q(unit__status="READY")),
         service_count=Count("unit", filter=Q(unit__status="IN_SERVICE")),
-
-        # Сумма quantity из активных резервов через подзапрос,
-        # т.к. резервы хранятся в ReservationItem, а не в Reservation
         reserved_count=Coalesce(
             Subquery(
                 ReservationItem.objects.filter(
                     product=OuterRef('pk'),
-                    reservation__is_fulfilled=False, reservation__is_canceled=False).values("product"
-                ).annotate(total=Sum('quantity')).values('total')[:1]
+                    reservation__is_fulfilled=False,
+                    reservation__is_canceled=False
+                ).values("product").annotate(total=Sum('quantity')).values('total')[:1]
             ),
             Value(0)
         ),
-
-        # Свободно = Всего - Резерв - Сервис
         available_count=ExpressionWrapper(
             F('total_count') - Coalesce(F('reserved_count'), Value(0)) - Coalesce(F('service_count'), Value(0)),
             output_field=IntegerField()
         )
     ).order_by('equipment_type__name', 'name')
 
-    return render(request, "inventory/dashboard.html", {"products": products})
+    # 2. Подсчёт по комплексам
+    kits = Kit.objects.filter(is_active=True).annotate(
+        total_assemblies=Count("assembly", filter=Q(assembly__status__in=["READY", "RESERVED", "IN_SERVICE"])),
+        ready_assemblies=Count("assembly", filter=Q(assembly__status="READY")),
+        reserved_assemblies=Count("assembly", filter=Q(assembly__status="RESERVED")),
+        service_assemblies=Count("assembly", filter=Q(assembly__status="IN_SERVICE")),
+        sold_assemblies=Count("assembly", filter=Q(assembly__status="SOLD")),
+        available_assemblies=ExpressionWrapper(
+            F('total_assemblies') - F('reserved_assemblies') - F('service_assemblies'),
+            output_field=IntegerField()
+        )
+    ).order_by('equipment_type__name', 'name')
+
+    # 3. Передаём обе переменные в шаблон
+    return render(request, "inventory/dashboard.html", {
+        "products": products,
+        "kits": kits,
+    })
 
 
 def ship_reservation(request, reservation_id):
