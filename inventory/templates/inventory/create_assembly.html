@@ -9,6 +9,7 @@
     {% endfor %}
 {% endif %}
 
+<!-- Форма выбора комплекта -->
 <form method="GET" class="mb-4 p-3 bg-light rounded">
     <div class="row align-items-end">
         <div class="col-md-8">
@@ -26,24 +27,25 @@
 </form>
 
 {% if selected_kit %}
-    <form method="POST">
-        {% csrf_token %}
-        <input type="hidden" name="kit" value="{{ selected_kit.id }}">
+<form method="POST">
+    {% csrf_token %}
+    <input type="hidden" name="kit" value="{{ selected_kit.id }}">
 
-        <h4 class="mb-3">Состав: {{ selected_kit.name }}</h4>
+    <h4 class="mb-3">Состав: {{ selected_kit.name }}</h4>
 
-        {% for data in components_data %}
-            <div class="card mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>{{ data.component.product.name }}</strong>
-                        <span class="badge bg-primary">Требуется: {{ data.component.quantity }} шт.</span>
-                    </div>
-                    {% if not data.component.product.requires_serial %}
-                        <span class="badge bg-info">Без серийников</span>
-                    {% endif %}
+    {% for data in components_data %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ data.component.product.name }}</strong>
+                    <span class="badge bg-primary">Требуется: {{ data.component.quantity }} шт.</span>
                 </div>
-                <div class="card-body">
+                {% if not data.component.product.requires_serial %}
+                    <span class="badge bg-info">Без серийников (берутся автоматически)</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if data.component.product.requires_serial %}
                     {% if data.available_units.count == 0 %}
                         <div class="alert alert-warning mb-0">Нет доступных устройств!</div>
                     {% else %}
@@ -54,57 +56,63 @@
                                     <select name="component_{{ data.component.id }}"
                                             class="form-select unit-select"
                                             data-component="{{ data.component.id }}"
-                                            data-requires-serial="{{ data.component.product.requires_serial|yesno:'true,false' }}"
+                                            data-requires-serial="true"
                                             required>
                                         <option value="">-- Выберите устройство --</option>
                                         {% for unit in data.available_units %}
                                             <option value="{{ unit.id }}" data-status="{{ unit.status }}">
-                                                {% if data.component.product.requires_serial %}
-                                                    {% if unit.serial_number %}
-                                                        {{ unit.serial_number }} (READY)
-                                                    {% else %}
-                                                        ID: {{ unit.id }} (без серийника)
-                                                    {% endif %}
+                                                {% if unit.serial_number %}
+                                                    {{ unit.serial_number }} (READY)
                                                 {% else %}
-                                                    ID: {{ unit.id }}
+                                                    ID: {{ unit.id }} (без серийника)
                                                 {% endif %}
                                             </option>
                                         {% endfor %}
                                     </select>
                                     <div class="serial-input mt-2" style="display:none;">
-                                        <input type="text" name="serial_{{ data.component.id }}" class="form-control form-control-sm" placeholder="Введите серийный номер">
+                                        <input type="text" name="serial_{{ data.component.id }}_{{ forloop.counter0 }}"
+                                               class="form-control form-control-sm"
+                                               placeholder="Введите серийный номер">
                                     </div>
                                 </div>
                             {% endfor %}
                         </div>
                     {% endif %}
-                </div>
+                {% else %}
+                    <p>Доступно на складе: {{ data.available_units.count }} шт.</p>
+                    {% if data.available_units.count < data.component.quantity %}
+                        <div class="alert alert-danger">Недостаточно на складе!</div>
+                    {% else %}
+                        <div class="alert alert-success">Будут взяты автоматически</div>
+                    {% endif %}
+                {% endif %}
             </div>
-        {% endfor %}
+        </div>
+    {% endfor %}
 
-        <button type="submit" class="btn btn-success btn-lg">Собрать комплект</button>
-        <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">Отмена</a>
-    </form>
+    <button type="submit" class="btn btn-success btn-lg">Собрать комплект</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">Отмена</a>
+</form>
 
-    <script>
-    document.querySelectorAll('.unit-select').forEach(function(select) {
-        select.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const status = selectedOption.getAttribute('data-status');
-            const requiresSerial = this.getAttribute('data-requires-serial');
-            const serialInput = this.parentElement.querySelector('.serial-input');
+<script>
+document.querySelectorAll('.unit-select').forEach(function(select) {
+    select.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const status = selectedOption.getAttribute('data-status');
+        const requiresSerial = this.getAttribute('data-requires-serial');
+        const serialInput = this.parentElement.querySelector('.serial-input');
 
-            if (status === 'IN_STOCK' && requiresSerial === 'true') {
-                serialInput.style.display = 'block';
-                serialInput.querySelector('input').required = true;
-            } else {
-                serialInput.style.display = 'none';
-                serialInput.querySelector('input').required = false;
-                serialInput.querySelector('input').value = '';
-            }
-        });
+        if (status === 'IN_STOCK' && requiresSerial === 'true') {
+            serialInput.style.display = 'block';
+            serialInput.querySelector('input').required = true;
+        } else {
+            serialInput.style.display = 'none';
+            serialInput.querySelector('input').required = false;
+            serialInput.querySelector('input').value = '';
+        }
     });
-    </script>
+});
+</script>
 {% endif %}
 
 {% endblock %}

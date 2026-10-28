@@ -42,7 +42,7 @@ def main_dashboard(request):
             F('total_assemblies') - F('reserved_assemblies') - F('service_assemblies'),
             output_field=IntegerField()
         )
-    ).order_by('equipment_type__name', 'name')
+    ).order_by('equipment_type__name', 'name').distinct()
 
     # 3. Передаём обе переменные в шаблон
     return render(request, "inventory/dashboard.html", {
@@ -132,39 +132,72 @@ def active_reservations(request):
     reservations = Reservation.objects.filter(is_fulfilled=False, is_canceled=False)
     return render(request, "inventory/reservations.html", {"reservations": reservations})
 
+
 def create_reservation(request):
     clients = Client.objects.all()
     products = Product.objects.all()
+
     if request.method == "POST":
-        client_id = request.POST.get('client')  # получаем ID клиента из формы
+        client_id = request.POST.get('client')
+        new_client_name = request.POST.get('new_client_name', '')
+
+        # 1. Определяем клиента
+        client = None
+
         if client_id:
-            items = []
-            for i in range(1, 10):
-                product = request.POST.get(f"product_{i}")
-                quantity = request.POST.get(f"quantity_{i}")
-                if not product or not quantity:
-                    continue
-                items.append((product,quantity))
-
-
-            if not items:
-                error = "Добавьте хотябы 1 позицию"
-                return render(request, "inventory/create_reservation.html",
-                              {"clients": clients, "products": products, "error": error})
+            # Вариант А: выбран существующий клиент
+            try:
+                client = Client.objects.get(id=client_id)
+            except Client.DoesNotExist:
+                return render(request, "inventory/create_reservation.html", {
+                    "clients": clients, "products": products,
+                    "error": "Выбранный клиент не найден"
+                })
+        elif new_client_name:
+            # Вариант Б: введено имя нового клиента
+            if Client.objects.filter(name=new_client_name).exists():
+                return render(request, "inventory/create_reservation.html", {
+                    "clients": clients, "products": products,
+                    "error": f"Клиент '{new_client_name}' уже существует. Выберите его из списка."
+                })
+            client = Client.objects.create(name=new_client_name)
         else:
-            error = "Выберите клиента"
-            return render(request, "inventory/create_reservation.html",
-                          {"clients": clients, "products": products, "error": error})
+            # Вариант В: ничего не выбрано
+            return render(request, "inventory/create_reservation.html", {
+                "clients": clients, "products": products,
+                "error": "Выберите клиента из списка или введите имя нового"
+            })
 
-        client = Client.objects.get(id=client_id)
+        # 2. Собираем позиции резерва
+        items = []
+        for i in range(1, 10):
+            product = request.POST.get(f"product_{i}")
+            quantity = request.POST.get(f"quantity_{i}")
+            if not product or not quantity:
+                continue
+            items.append((product, quantity))
+
+        if not items:
+            return render(request, "inventory/create_reservation.html", {
+                "clients": clients, "products": products,
+                "error": "Добавьте хотя бы 1 позицию"
+            })
+
+        # 3. Создаём резерв
         reservation = Reservation.objects.create(client=client)
         for product_id, quantity in items:
             product = Product.objects.get(id=product_id)
             quantity = int(quantity)
-            ReservationItem.objects.create(reservation=reservation, product=product, quantity=quantity)
+            ReservationItem.objects.create(
+                reservation=reservation,
+                product=product,
+                quantity=quantity
+            )
 
+        messages.success(request, f"Резерв для '{client.name}' успешно создан")
         return redirect('reservations')
 
+    # GET-запрос
     return render(request, "inventory/create_reservation.html", {
         "clients": clients,
         "products": products
@@ -538,65 +571,77 @@ def create_assembly(request):
         components = selected_kit.components.all()
 
         assembly_units_to_create = []
-        used_unit_ids = set()  # ← для проверки дубликатов
+        used_unit_ids = set()
         error_found = False
 
         for component in components:
-            selected_unit_ids = request.POST.getlist(f'component_{component.id}')
+            if component.product.requires_serial:
+                selected_unit_ids = request.POST.getlist(f'component_{component.id}')
+                selected_unit_ids = [uid for uid in selected_unit_ids if uid]
 
-            # Фильтруем пустые значения
-            selected_unit_ids = [uid for uid in selected_unit_ids if uid]
-
-            # Проверка: выбрано ли правильное количество РЕАЛЬНЫХ устройств
-            if len(selected_unit_ids) != component.quantity:
-                messages.error(
-                    request,
-                    f"Для '{component.product.name}' нужно выбрать ровно {component.quantity} шт. (выбрано {len(selected_unit_ids)})"
-                )
-                error_found = True
-                break
-
-            for unit_id in selected_unit_ids:
-                # Проверка на дубликаты
-                if unit_id in used_unit_ids:
+                if len(selected_unit_ids) != component.quantity:
                     messages.error(
                         request,
-                        f"Устройство ID {unit_id} выбрано несколько раз. Выберите разные устройства."
+                        f"Для '{component.product.name}' нужно выбрать ровно {component.quantity} шт. (выбрано {len(selected_unit_ids)})"
                     )
                     error_found = True
                     break
-                used_unit_ids.add(unit_id)
 
-                try:
-                    unit = Unit.objects.get(id=unit_id)
-
-                    if unit.status not in ["IN_STOCK", "READY"]:
+                # Используем enumerate, чтобы получить индекс каждого экземпляра
+                for idx, unit_id in enumerate(selected_unit_ids):
+                    if unit_id in used_unit_ids:
                         messages.error(
                             request,
-                            f"Устройство {unit.serial_number or unit.id} имеет статус {unit.status}, а нужен IN_STOCK или READY"
+                            f"Устройство ID {unit_id} выбрано несколько раз. Выберите разные устройства."
                         )
                         error_found = True
                         break
+                    used_unit_ids.add(unit_id)
 
-                    if unit.status == "IN_STOCK":
-                        if unit.product.requires_serial:
-                            serial = request.POST.get(f'serial_{unit_id}')
+                    try:
+                        unit = Unit.objects.get(id=unit_id)
+
+                        if unit.status not in ["IN_STOCK", "READY"]:
+                            messages.error(
+                                request,
+                                f"Устройство {unit.serial_number or unit.id} имеет статус {unit.status}, а нужен IN_STOCK или READY"
+                            )
+                            error_found = True
+                            break
+
+                        if unit.status == "IN_STOCK":
+                            # ← ВОТ ЧТО МЕНЯЕМ: получаем серийник с индексом
+                            serial = request.POST.get(f'serial_{component.id}_{idx}')
                             if not serial:
                                 messages.error(request, f"Для устройства {unit.id} нужно ввести серийный номер")
                                 error_found = True
                                 break
                             unit.serial_number = serial
-                        unit.status = "READY"
-                        unit.save()
+                            unit.status = "READY"
+                            unit.save()
 
-                    assembly_units_to_create.append(unit)
-                except Unit.DoesNotExist:
-                    messages.error(request, f"Устройство ID {unit_id} не найдено")
+                        assembly_units_to_create.append(unit)
+                    except Unit.DoesNotExist:
+                        messages.error(request, f"Устройство ID {unit_id} не найдено")
+                        error_found = True
+                        break
+
+                if error_found:
+                    break
+            else:
+                # Немаркируемые: берём автоматически
+                available_units = Unit.objects.filter(
+                    product=component.product,
+                    status=["IN_STOCK", "READY"]
+                )[:component.quantity]
+
+                if len(available_units) < component.quantity:
+                    messages.error(request, f"Недостаточно {component.product.name} на складе")
                     error_found = True
                     break
 
-            if error_found:
-                break
+                for unit in available_units:
+                    assembly_units_to_create.append(unit)
 
         if not error_found and assembly_units_to_create:
             assembly = Assembly.objects.create(kit=selected_kit, status="READY")
@@ -609,11 +654,10 @@ def create_assembly(request):
             messages.success(request, f"Сборка #{assembly.id} успешно создана!")
             return redirect('dashboard')
 
-        # Если ошибка не была показана, но сборка не создана — редирект с ошибкой
         if error_found:
             return redirect('create_assembly')
 
-    # GET-запрос: подготовка данных для формы
+    # GET-запрос
     kit_id = request.GET.get('kit')
     if kit_id:
         selected_kit = get_object_or_404(Kit, id=kit_id)
