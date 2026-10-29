@@ -135,7 +135,7 @@ def active_reservations(request):
 
 def create_reservation(request):
     clients = Client.objects.all()
-    products = Product.objects.all()
+    products = Product.objects.filter(is_component=False)
 
     if request.method == "POST":
         client_id = request.POST.get('client')
@@ -632,7 +632,7 @@ def create_assembly(request):
                 # Немаркируемые: берём автоматически
                 available_units = Unit.objects.filter(
                     product=component.product,
-                    status=["IN_STOCK", "READY"]
+                    status__in=["IN_STOCK", "READY"]
                 )[:component.quantity]
 
                 if len(available_units) < component.quantity:

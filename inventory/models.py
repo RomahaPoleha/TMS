@@ -50,6 +50,12 @@ class EquipmentType(models.Model):
 class Product(models.Model):
     name = models.CharField(max_length=200, unique=True, verbose_name="Наименование")
     equipment_type = models.ForeignKey(EquipmentType, on_delete=models.PROTECT, verbose_name="Тип оборудования")
+    is_component = models.BooleanField(
+        default=False,
+        verbose_name="Только для компонентов",
+        help_text = "Если отмечено, товар не будет отображаться в списке при создании резерва"
+    )
+
     requires_serial = models.BooleanField(
         default=True,
         verbose_name="Требует серийного номера",
