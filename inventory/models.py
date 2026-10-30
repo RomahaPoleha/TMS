@@ -1,4 +1,5 @@
 
+from django.db.models import Sum, Q
 
 from django.db.models import CharField, PROTECT, CASCADE
 from django.utils import timezone
@@ -223,6 +224,52 @@ class Kit(models.Model):
     equipment_type = models.ForeignKey(EquipmentType,
         on_delete= models.PROTECT,
         verbose_name="Тип оборудования")
+
+    def get_potential_count(self):
+        """Считает, сколько полных комплектов можно собрать из свободных запчастей."""
+
+
+        min_count = float('inf')
+
+        for comp in self.components.all():
+            # 1. Считаем ВСЕ компоненты на складе
+            total_available = Unit.objects.filter(
+                product=comp.product,
+                status__in=["IN_STOCK", "READY"]
+            ).count()
+
+            # 2. Вычитаем зарезервированные (как компоненты)
+            reserved_as_component = ReservationItem.objects.filter(
+                product=comp.product,
+                reservation__is_fulfilled=False,
+                reservation__is_canceled=False
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+
+            # 3. Вычитаем компоненты, которые нужны для выполнения резервов на готовые комплекты
+            # Если готовых комплектов нет, но есть резерв, то резерв "съедает" компоненты
+            reserved_assemblies = Assembly.objects.filter(
+                kit=self,
+                status="RESERVED"
+            ).count()
+
+            # Если готовых комплектов меньше, чем резервов, то разница "съедает" компоненты
+            ready_assemblies = Assembly.objects.filter(kit=self, status="READY").count()
+            deficit = max(0, reserved_assemblies - ready_assemblies)
+
+            # Компонентов нужно для покрытия дефицита
+            components_needed_for_deficit = deficit * comp.quantity
+
+            # 4. Свободные компоненты = всего - зарезервированные как компоненты - нужные для дефицита
+            free_components = total_available - reserved_as_component - components_needed_for_deficit
+
+            # 5. Делим на количество в комплекте
+            possible = free_components // comp.quantity
+
+            if possible < min_count:
+                min_count = possible
+
+        return min_count if min_count != float('inf') else 0
+
 
     class Meta:
         verbose_name = "Комплект"

@@ -33,35 +33,34 @@
     </table>
 {% endfor %}
 
-<!-- 2. Группировка комплектов по типу (ВНЕ цикла товаров!) -->
-{% regroup kits by equipment_type as kit_type_list %}
+<!-- 2. Таблица комплектов -->
+<h2 class="mt-5">Комплекты</h2>
 
-{% for kit_type_group in kit_type_list %}
-    <h2 class="mt-5">{{ kit_type_group.grouper.name }} — Комплекты</h2>
-    <table class="table table-striped table-hover table-bordered">
-        <thead class="table-dark">
-            <tr>
-                <th>Наименование</th>
-                <th>Всего</th>
-                <th>Готово</th>
-                <th>В сервисе</th>
-                <th>Забронировано</th>
-                <th>Свободно</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for kit in kit_type_group.list %}
-            <tr>
-                <td>{{ kit.name }}</td>
-                <td>{{ kit.total_assemblies }}</td>
-                <td><span class="badge bg-success">{{ kit.ready_assemblies }}</span></td>
-                <td><span class="badge bg-warning">{{ kit.service_assemblies }}</span></td>
-                <td><span class="badge bg-info">{{ kit.reserved_assemblies }}</span></td>
-                <td><span class="badge bg-primary">{{ kit.available_assemblies }}</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% endfor %}
+{% if kits %}
+<table class="table table-striped table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Наименование</th>
+            <th>Можно изготовить</th>
+            <th>Готово</th>
+            <th>Резерв</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for kit in kits %}
+        <tr>
+            <td><strong>{{ kit.name }}</strong></td>
+            <td><span class="badge bg-info">{{ kit.get_potential_count }}</span></td>
+            <td><span class="badge bg-success">{{ kit.ready_assemblies }}</span></td>
+            <td><span class="badge bg-success">{{ kit.ready_assemblies }}</span></td>
+            <td><span class="badge bg-warning">{{ kit.reserved_assemblies }}</span></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">Комплекты ещё не созданы</div>
+{% endif %}
+
 
 {% endblock %}
