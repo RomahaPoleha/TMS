@@ -1,0 +1,79 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">📦 Реестр сборок (Комплекты)</h1>
+            <p class="text-muted mb-0">Список всех физически собранных комплектов</p>
+        </div>
+        <a href="{% url 'create_assembly' %}" class="btn btn-primary">➕ Собрать новый комплект</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            {% if assemblies %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Наименование комплекта</th>
+                            <th>Статус</th>
+                            <th>Клиент / Резерв</th>
+                            <th>Дата сборки</th>
+                            <th class="text-center">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assembly in assemblies %}
+                        <tr>
+                            <td>
+                                {% if assembly.serial_number %}
+                                    <strong>{{ assembly.serial_number }}</strong>
+                                {% else %}
+                                    <span class="text-muted">#{{ assembly.id }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ assembly.kit.name }}</td>
+                            <td>
+                                {% if assembly.status == "READY" %}
+                                    <span class="badge bg-success">Готов</span>
+                                {% elif assembly.status == "RESERVED" %}
+                                    <span class="badge bg-warning text-dark">Зарезервирован</span>
+                                {% elif assembly.status == "IN_SERVICE" %}
+                                    <span class="badge bg-danger">В сервисе</span>
+                                {% elif assembly.status == "SOLD" %}
+                                    <span class="badge bg-dark">Продан</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ assembly.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if assembly.reservation and assembly.reservation.client %}
+                                    {{ assembly.reservation.client.name }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ assembly.created_at|date:"d.m.Y H:i" }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-sm btn-outline-info">
+                                    🔍 Состав
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <h5>📭 Сборок пока нет</h5>
+                <p>Соберите первый комплект, и он появится здесь</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

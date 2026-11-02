@@ -31,6 +31,14 @@
     {% csrf_token %}
     <input type="hidden" name="kit" value="{{ selected_kit.id }}">
 
+        <!-- Поле для серийного номера комплекта -->
+        <div class="mb-3">
+            <label for="assembly_serial" class="form-label fw-bold">Серийный номер комплекта:</label>
+            <input type="text" name="assembly_serial" id="assembly_serial" class="form-control"
+                   placeholder="Введите уникальный серийный номер" required>
+            <small class="form-text text-muted">Этот номер будет использоваться для учёта и гарантии</small>
+        </div>
+
     <h4 class="mb-3">Состав: {{ selected_kit.name }}</h4>
 
     {% for data in components_data %}

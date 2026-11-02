@@ -298,6 +298,14 @@ class Assembly(models.Model):
     """Готовая физическая сборка комплекта"""
     kit = models.ForeignKey(Kit, on_delete=models.PROTECT, verbose_name="Комплект")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата сборки")
+    serial_number = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Серийный номер комплекта",
+        help_text="Уникальный серийный номер собранного комплекта"
+    )
     status = models.CharField(
         max_length=20,
         choices=[

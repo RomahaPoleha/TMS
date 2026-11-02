@@ -1,0 +1,88 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="mb-4">
+        <a href="{% url 'assembly_list' %}" class="btn btn-outline-secondary btn-sm mb-3">← Назад к реестру</a>
+        <h1 class="h3 mb-1">
+            {% if assembly.serial_number %}
+                Сборка {{ assembly.serial_number }}: {{ assembly.kit.name }}
+            {% else %}
+                Сборка #{{ assembly.id }}: {{ assembly.kit.name }}
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">Детальная информация и состав</p>
+    </div>
+
+    <div class="row">
+        <!-- Левая колонка: Информация о сборке -->
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Информация</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Статус:</strong>
+                        {% if assembly.status == "READY" %}<span class="badge bg-success">Готов</span>
+                        {% elif assembly.status == "RESERVED" %}<span class="badge bg-warning text-dark">Зарезервирован</span>
+                        {% elif assembly.status == "IN_SERVICE" %}<span class="badge bg-danger">В сервисе</span>
+                        {% elif assembly.status == "SOLD" %}<span class="badge bg-dark">Продан</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Клиент:</strong>
+                        {% if assembly.reservation and assembly.reservation.client %}
+                            {{ assembly.reservation.client.name }}
+                        {% else %}
+                            <span class="text-muted">Не назначен</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Дата сборки:</strong> {{ assembly.created_at|date:"d.m.Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: Состав сборки -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">🔧 Состав комплекта (внутренние устройства)</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if assembly_units %}
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Компонент</th>
+                                <th>Серийный номер / ID</th>
+                                <th>Статус устройства</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for au in assembly_units %}
+                            <tr>
+                                <td>{{ au.unit.product.name }}</td>
+                                <td>
+                                    {% if au.unit.serial_number %}
+                                        <strong>{{ au.unit.serial_number }}</strong>
+                                    {% else %}
+                                        <span class="text-muted">ID: {{ au.unit.id }} (без серийника)</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ au.unit.get_status_display }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        Состав этой сборки не найден
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

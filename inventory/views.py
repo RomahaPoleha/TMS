@@ -419,10 +419,10 @@ def shipment_registry(request):
 
 
 def add_to_service(request):
-    "Добавление в сервис"
+    """Добавление в сервис"""
     if request.method == "POST":
         unit_id = request.POST.get("unit")
-        defect_type_id = request.POST.get("defect_type")  # ← Переименовал для ясности
+        defect_type_id = request.POST.get("defect_type")
         service_comment = request.POST.get("service_comment")
         serial_number = request.POST.get('serial_number')
 
@@ -436,11 +436,20 @@ def add_to_service(request):
             messages.error(request, "Устройство не найдено")
             return redirect('add_to_service')
 
-        # Получаем объект DefectType по ID
         try:
             defect_type = DefectType.objects.get(id=defect_type_id)
         except DefectType.DoesNotExist:
             messages.error(request, "Неисправность не найдена")
+            return redirect('add_to_service')
+
+        # 🔒 НОВАЯ ПРОВЕРКА: устройство не должно быть частью сборки
+        if AssemblyUnit.objects.filter(unit=unit).exists():
+            assembly = AssemblyUnit.objects.filter(unit=unit).first().assembly
+            messages.error(
+                request,
+                f"Устройство {unit.serial_number or unit.id} уже входит в состав сборки #{assembly.id} "
+                f"({assembly.kit.name}). Сначала разберите сборку или отправьте в сервис весь комплект."
+            )
             return redirect('add_to_service')
 
         if serial_number:
@@ -448,7 +457,7 @@ def add_to_service(request):
 
         if unit.status in ["READY", "IN_STOCK"]:
             unit.status = 'IN_SERVICE'
-            unit.defect_type = defect_type  # ← Теперь присваиваем объект
+            unit.defect_type = defect_type
             unit.service_comment = service_comment
             unit.save()
             messages.success(request, f"Оборудование отправлено в сервис: {unit.serial_number or 'без серийника'}")
@@ -697,7 +706,24 @@ def create_assembly(request):
                     used_unit_ids.add(unit.id)
 
         if not error_found and assembly_units_to_create:
-            assembly = Assembly.objects.create(kit=selected_kit, status="READY")
+            # Получаем серийный номер комплекта из формы
+            assembly_serial = request.POST.get('assembly_serial', '').strip()
+
+            # Проверка: серийный номер обязателен
+            if not assembly_serial:
+                messages.error(request, "Введите серийный номер комплекта")
+                return redirect('create_assembly')
+
+            # Проверка на дубликат серийного номера
+            if Assembly.objects.filter(serial_number=assembly_serial).exists():
+                messages.error(request, f"Комплект с серийным номером '{assembly_serial}' уже существует")
+                return redirect('create_assembly')
+
+            assembly = Assembly.objects.create(
+                kit=selected_kit,
+                status="READY",
+                serial_number=assembly_serial
+            )
 
             for unit in assembly_units_to_create:
                 unit.status = "ASSEMBLED"
@@ -729,4 +755,27 @@ def create_assembly(request):
         "kits": kits,
         "selected_kit": selected_kit,
         "components_data": components_data
+    })
+
+
+def assembly_list(request):
+    """Реестр всех сборок (комплектов)"""
+    assemblies = Assembly.objects.select_related('kit', 'reservation__client').order_by('-id')
+    return render(request, "inventory/assembly_list.html", {
+        "assemblies": assemblies
+    })
+
+
+def assembly_detail(request, assembly_id):
+    """Детальная информация о конкретной сборке (состав)"""
+    assembly = get_object_or_404(
+        Assembly.objects.select_related('kit', 'reservation__client'),
+        id=assembly_id
+    )
+    # Получаем все устройства, которые входят в эту сборку
+    assembly_units = AssemblyUnit.objects.select_related('unit__product').filter(assembly=assembly)
+
+    return render(request, "inventory/assembly_detail.html", {
+        "assembly": assembly,
+        "assembly_units": assembly_units
     })
