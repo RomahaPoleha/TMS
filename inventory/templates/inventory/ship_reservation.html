@@ -49,6 +49,23 @@
         </div>
     {% endfor %}
 
+    {% if assemblies_with_info %}
+        <h4 class="mt-4">Готовые сборки к отгрузке</h4>
+        {% for data in assemblies_with_info %}
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <strong>{{ data.assembly.kit.name }}</strong> (Сборка #{{ data.assembly.id }})
+                    {% if data.assembly.serial_number %}
+                        <span class="ms-2 badge bg-secondary">{{ data.assembly.serial_number }}</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">Сборка будет отгружена как единое целое. Серийный номер: {{ data.assembly.serial_number|default:"—" }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
     <button type="submit" class="btn btn-success btn-lg">Подтвердить отгрузку</button>
     <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">Отмена</a>
 </form>

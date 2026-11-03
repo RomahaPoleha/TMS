@@ -30,13 +30,42 @@
                         {% endif %}
                     </p>
                     <p><strong>Клиент:</strong>
-                        {% if assembly.reservation and assembly.reservation.client %}
-                            {{ assembly.reservation.client.name }}
-                        {% else %}
-                            <span class="text-muted">Не назначен</span>
-                        {% endif %}
+                        {% with reservation_line=assembly.reservation_lines.first %}
+                            {% if reservation_line and reservation_line.reservation.client %}
+                                {{ reservation_line.reservation.client.name }}
+                            {% else %}
+                                <span class="text-muted">Не назначен</span>
+                            {% endif %}
+                        {% endwith %}
                     </p>
-                    <p><strong>Дата сборки:</strong> {{ assembly.created_at|date:"d.m.Y H:i" }}</p>
+                    {% if assembly.status == "READY" %}
+                <div class="mt-3">
+                    <form method="POST" action="{% url 'disassemble_assembly' assembly.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('Разобрать сборку? Устройства вернутся на склад')">
+                            🔧 Разобрать сборку
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+                {% if assembly.status == "READY" or assembly.status == "RESERVED" %}
+                <div class="mt-3">
+                    <a href="{% url 'assembly_to_service' assembly.id %}" class="btn btn-outline-warning btn-sm">
+                        🔧 Отправить в сервис
+                    </a>
+                </div>
+                {% endif %}
+                {% if assembly.status == "IN_SERVICE" %}
+                <div class="mt-3">
+                    <form method="POST" action="{% url 'finish_assembly_service' assembly.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-success btn-sm">
+                            ✅ Завершить ремонт
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
                 </div>
             </div>
         </div>

@@ -25,6 +25,11 @@ urlpatterns = [
     path('assembly/add/', views.create_assembly, name='create_assembly'),
     path('assemblies/', views.assembly_list, name='assembly_list'),
     path('assemblies/<int:assembly_id>/', views.assembly_detail, name='assembly_detail'),
+    path('assemblies/<int:assembly_id>/finish-service/', views.finish_assembly_service, name='finish_assembly_service'),
+path('assemblies/<int:assembly_id>/service/', views.assembly_to_service, name='assembly_to_service'),
+path('assemblies/<int:assembly_id>/disassemble/', views.disassemble_assembly, name='disassemble_assembly'),
+    path('kits/<int:kit_id>/potential/', views.kit_potential, name='kit_potential'),
+path('assemblies/<int:assembly_id>/cancel/', views.cancel_assembly_reservation, name='cancel_assembly_reservation'),
 
 
 ]

@@ -9,18 +9,29 @@
         <tr>
             <th>Дата отгрузки</th>
             <th>Клиент</th>
-            <th>Товар</th>
+            <th>Товар / Сборка</th>
             <th>Количество</th>
         </tr>
     </thead>
     <tbody>
         {% for reserv in reservations %}
-            {% for item in reserv.reservationitem_set.all %}
+            {% for line in reserv.lines.all %}
             <tr>
                 <td>{{ reserv.date_of_shipment }}</td>
                 <td>{{ reserv.client }}</td>
-                <td>{{ item.product }}</td>
-                <td>{{ item.quantity }}</td>
+                <td>
+                    {% if line.type == "product" %}
+                        {{ line.product.name }}
+                    {% elif line.type == "assembly" %}
+                        <strong>[Комплект]</strong> {{ line.assembly.kit.name }}
+                        {% if line.assembly.serial_number %}
+                            ({{ line.assembly.serial_number }})
+                        {% endif %}
+                    {% elif line.type == "kit" %}
+                        <strong>[Комплект на сборку]</strong> {{ line.kit.name }}
+                    {% endif %}
+                </td>
+                <td>{{ line.quantity }}</td>
             </tr>
             {% endfor %}
         {% endfor %}

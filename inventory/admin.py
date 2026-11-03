@@ -1,37 +1,51 @@
 from django.contrib import admin
-from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment,  ShipmentItem, ReservationItem, Kit, KitComponent
+from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment, ShipmentItem, ReservationLine, Kit, KitComponent, Assembly
 
 
 class UnitInline(admin.TabularInline):
     model = Unit
     extra = 1
 
+
 class UnitAdmin(admin.ModelAdmin):
-    list_display = ("product" , "serial_number", "status" , "created_at", "updated_at")
+    list_display = ("product", "serial_number", "status", "created_at", "updated_at")
+
 
 class ProductAdmin(admin.ModelAdmin):
     list_display = ("name", "equipment_type",)
     list_filter = ("equipment_type",)
-    search_fields = ("name", "equipment_type__name",) # lookup-запросы, нужны для работы с полями через связи
+    search_fields = ("name", "equipment_type__name",)
     inlines = [UnitInline]
+
 
 class ClientAdmin(admin.ModelAdmin):
     search_fields = ("name",)
+
 
 class BatchAdmin(admin.ModelAdmin):
     list_display = ("product", "quantity", "received_at")
 
 
-class ReservationItemInline(admin.TabularInline):
-    model = ReservationItem
-    fields = ('product', 'quantity')
+class ReservationLineInline(admin.TabularInline):
+    model = ReservationLine
+    fields = ('type', 'product', 'assembly', 'kit', 'quantity')
+    extra = 1
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "product":
+            kwargs["queryset"] = Product.objects.filter(is_component=False)
+        if db_field.name == "assembly":
+            kwargs["queryset"] = Assembly.objects.filter(status="READY")
+        if db_field.name == "kit":
+            kwargs["queryset"] = Kit.objects.filter(is_active=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 class ReservationAdmin(admin.ModelAdmin):
-    inlines = [ReservationItemInline]
-    list_display = ("client",  "created_at", "is_fulfilled")
+    inlines = [ReservationLineInline]
+    list_display = ("client", "created_at", "is_fulfilled")
     list_filter = ("client", "is_fulfilled")
-    list_editable = ("is_fulfilled",) # поля которые можно редактировать прям в резерве
-
+    list_editable = ("is_fulfilled",)
 
 
 class ShipmentItemInline(admin.TabularInline):
@@ -39,9 +53,9 @@ class ShipmentItemInline(admin.TabularInline):
     fields = ('unit',)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "unit": # Проверяем, какое поле сейчас рисует
-            kwargs["queryset"] = Unit.objects.filter(status = "READY") # Подменяем список вариантов
-        return super().formfield_for_foreignkey(db_field,request,**kwargs) # отдаём управление дальше
+        if db_field.name == "unit":
+            kwargs["queryset"] = Unit.objects.filter(status="READY")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class ShipmentAdmin(admin.ModelAdmin):
@@ -49,12 +63,11 @@ class ShipmentAdmin(admin.ModelAdmin):
     list_display = ("client", "created_at", "reservation")
 
     def save_related(self, request, form, formsets, change):
-        super().save_related(request, form, formsets, change) # сохранить все данные
+        super().save_related(request, form, formsets, change)
 
-        # сохранённый объект Shipment
         shipment = form.instance
-        shipment_all = shipment.shipmentitem_set.all() # получение всех позиций через обратную связь
-        for item in shipment_all :
+        shipment_all = shipment.shipmentitem_set.all()
+        for item in shipment_all:
             if item.unit.status != "SOLD":
                 item.unit.status = "SOLD"
                 item.unit.save()
@@ -63,10 +76,10 @@ class ShipmentAdmin(admin.ModelAdmin):
             shipment.reservation.save()
 
 
-# Это «встроенная форма» для редактирования компонентов прямо на странице комплекта.
 class KitComponentInline(admin.TabularInline):
     model = KitComponent
-    extra = 1 # Сколько пустых строк показывать внизу для добавления новых компонентов. 1 = одна пустая строка для нового компонента
+    extra = 1
+
 
 @admin.register(Kit)
 class KitAdmin(admin.ModelAdmin):
@@ -74,9 +87,16 @@ class KitAdmin(admin.ModelAdmin):
     list_display = ["name", "code", "is_active", "created_at"]
     list_filter = ["is_active"]
 
+
 @admin.register(KitComponent)
 class KitComponentAdmin(admin.ModelAdmin):
     list_display = ["kit", "product", "quantity"]
+
+
+@admin.register(ReservationLine)
+class ReservationLineAdmin(admin.ModelAdmin):
+    list_display = ["reservation", "type", "product", "assembly", "kit", "quantity"]
+    list_filter = ["type", "reservation__is_fulfilled"]
 
 
 # Регистрация в админке моделей
@@ -86,5 +106,3 @@ admin.site.register(Unit, UnitAdmin)
 admin.site.register(Batch, BatchAdmin)
 admin.site.register(Reservation, ReservationAdmin)
 admin.site.register(Shipment, ShipmentAdmin)
-
-

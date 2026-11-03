@@ -2,13 +2,16 @@ from django.db.models import F, ExpressionWrapper, IntegerField, Value
 from django.db.models.functions import Coalesce
 from django.db.models import Count, Sum, Q, Subquery, OuterRef
 from django.utils import timezone
-from inventory.models import Product, Reservation, ReservationItem, Unit, EquipmentType, Client , DefectType, Kit, Assembly, AssemblyUnit
+from django.db import transaction
+from django.http import HttpRequest, HttpResponse
+from inventory.models import Product, Reservation, ReservationLine, Unit, EquipmentType, Client, DefectType, Kit, Assembly, AssemblyUnit
+from inventory.services import ReservationService, AssemblyService, ServiceService, ShipmentService
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 
 
-def main_dashboard(request):
-    """Сводная таблица по товарам и комплексам."""
+def main_dashboard(request: HttpRequest) -> HttpResponse:
+    """Сводная таблица по товарам и комплектам."""
 
     # 1. Подсчёт по товарам
     products = Product.objects.annotate(
@@ -17,7 +20,8 @@ def main_dashboard(request):
         service_count=Count("unit", filter=Q(unit__status="IN_SERVICE")),
         reserved_count=Coalesce(
             Subquery(
-                ReservationItem.objects.filter(
+                ReservationLine.objects.filter(
+                    type="product",
                     product=OuterRef('pk'),
                     reservation__is_fulfilled=False,
                     reservation__is_canceled=False
@@ -51,94 +55,93 @@ def main_dashboard(request):
     })
 
 
-def ship_reservation(request, reservation_id):
-    """Отгрузка резервов клиенту"""
+@transaction.atomic
+def ship_reservation(request: HttpRequest, reservation_id: int) -> HttpResponse:
+    """Отгрузка резервов клиенту (товары + сборки)"""
     reservation = Reservation.objects.get(id=reservation_id)
-    reservation_items = ReservationItem.objects.filter(reservation=reservation)
+    reservation_lines = reservation.lines.select_related("product", "assembly__kit").all()
 
     if request.method == "POST":
-        # Проходим по всем позициям резерва
-        for item in reservation_items:
-            # Если товар не требует серийника — просто списываем нужное количество
-            if not item.product.requires_serial:
-                units_to_ship = Unit.objects.filter(
-                    product=item.product,
-                    status="READY"
-                )[:item.quantity]
-
-                if len(units_to_ship) < item.quantity:
+        # Собираем выбранные Units для маркируемых товаров
+        selected_units = {}
+        for line in reservation_lines.filter(type="product"):
+            if line.product.requires_serial:
+                selected_ids = request.POST.getlist(f'unit_{line.id}')
+                if len(selected_ids) != line.quantity:
                     messages.error(
                         request,
-                        f"Недостаточно товара {item.product.name} на складе (нужно {item.quantity}, есть {len(units_to_ship)})"
+                        f"Для товара {line.product} нужно выбрать {line.quantity} шт., выбрано {len(selected_ids)}"
                     )
                     return redirect('ship_reservation', reservation_id=reservation_id)
+                units = list(Unit.objects.filter(id__in=selected_ids))
+                selected_units[line] = units
 
-                for unit in units_to_ship:
-                    unit.reservation = reservation
-                    unit.status = 'SOLD'
-                    unit.save()
-            else:
-                # Для маркируемых товаров — обычный выбор конкретных Unit'ов
-                selected_ids = request.POST.getlist(f'unit_{item.id}')
+        try:
+            ReservationService.ship_reservation(reservation, selected_units)
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect('ship_reservation', reservation_id=reservation_id)
 
-                # Проверяем, что выбрано правильное количество устройств
-                if len(selected_ids) != item.quantity:
-                    messages.error(
-                        request,
-                        f"Для товара {item.product} нужно выбрать {item.quantity} шт., выбрано {len(selected_ids)}"
-                    )
-                    return redirect('ship_reservation', reservation_id=reservation_id)
-
-                # Меняем статус каждого выбранного Unit на SOLD
-                for unit_id in selected_ids:
-                    unit = Unit.objects.get(id=unit_id)
-                    unit.reservation = reservation
-                    unit.status = 'SOLD'
-                    unit.save()
-
-        # Помечаем резерв как исполненный
-        reservation.is_fulfilled = True
-        reservation.date_of_shipment = timezone.now()
-        reservation.save()
         messages.success(request, "Резерв успешно отгружен")
         return redirect('reservations')
 
     # GET-запрос: собираем данные для шаблона
     items_with_units = []
-    for item in reservation_items:
+    for line in reservation_lines.filter(type="product"):
         available_units = Unit.objects.filter(
-            product=item.product,
+            product=line.product,
             status="READY"
         )
         items_with_units.append({
-            "item": item,
+            "item": line,
             "available_units": available_units,
-            "quantity_range": range(item.quantity),
+            "quantity_range": range(line.quantity),
+        })
+
+    assemblies_with_info = []
+    for line in reservation_lines.filter(type="assembly"):
+        assemblies_with_info.append({
+            "line": line,
+            "assembly": line.assembly,
         })
 
     return render(request, "inventory/ship_reservation.html", {
         "reservation": reservation,
         "items_with_units": items_with_units,
+        "assemblies_with_info": assemblies_with_info,
     })
 
-def reservation_history(request):
+def reservation_history(request: HttpRequest) -> HttpResponse:
     """История отгрузок"""
     reservations = Reservation.objects.filter(is_fulfilled=True).order_by('-created_at')
-    return render (request, "inventory/reservations_history.html" , {"reservations": reservations })
+    return render(request, "inventory/reservations_history.html", {"reservations": reservations})
 
 
-def active_reservations(request):
-    """Список неисполненных резервов."""
-    reservations = Reservation.objects.filter(is_fulfilled=False, is_canceled=False)
-    return render(request, "inventory/reservations.html", {"reservations": reservations})
+def active_reservations(request: HttpRequest) -> HttpResponse:
+    """Список неисполненных резервов (товары + сборки в одном месте)."""
+    reservations = Reservation.objects.filter(
+        is_fulfilled=False,
+        is_canceled=False
+    ).order_by('-created_at')
+
+    # Резервированные сборки через ReservationLine
+    reserved_assembly_lines = ReservationLine.objects.filter(
+        type="assembly",
+        reservation__is_fulfilled=False,
+        reservation__is_canceled=False
+    ).select_related("assembly__kit", "reservation").order_by("reservation__id", "assembly__id")
+
+    return render(request, "inventory/reservations.html", {
+        "reservations": reservations,
+        "reserved_assembly_lines": reserved_assembly_lines,
+    })
 
 
-def create_reservation(request):
+def create_reservation(request: HttpRequest) -> HttpResponse:
     clients = Client.objects.all()
     products = Product.objects.filter(is_component=False)
     available_assemblies = Assembly.objects.filter(
         status="READY",
-        reservation__isnull=True
     ).select_related('kit')
 
     if request.method == "POST":
@@ -171,72 +174,46 @@ def create_reservation(request):
                 "error": "Выберите клиента из списка или введите имя нового"
             })
 
-        # 2. УМНЫЙ СБОР ПОЗИЦИЙ (работает и с item_1, и с product_1)
-        items = []
+        # 2. Собираем позиции из POST
+        product_lines = []
+        assembly_lines = []
+
         for key, value in request.POST.items():
-            # Ищем любые поля, начинающиеся с item_ или product_, у которых есть значение
             if (key.startswith('item_') or key.startswith('product_')) and value:
-                idx = key.split('_')[1]  # Получаем цифру (1, 2, 3...)
+                idx = key.split('_')[1]
                 quantity_str = request.POST.get(f'quantity_{idx}')
 
                 if quantity_str:
                     try:
                         quantity = int(quantity_str)
                         if quantity > 0:
-                            items.append((value, quantity))
-                    except ValueError:
+                            if value.startswith('p_'):
+                                product_id = value[2:]
+                                product = Product.objects.get(id=product_id)
+                                product_lines.append((product, quantity))
+                            elif value.startswith('a_'):
+                                assembly_id = value[2:]
+                                assembly = Assembly.objects.get(id=assembly_id)
+                                assembly_lines.append((assembly, quantity))
+                    except (ValueError, Product.DoesNotExist, Assembly.DoesNotExist):
                         pass
 
-        if not items:
+        if not product_lines and not assembly_lines:
             return render(request, "inventory/create_reservation.html", {
                 "clients": clients, "products": products,
                 "available_assemblies": available_assemblies,
-                "error": "Добавьте хотя бы 1 позицию. Убедитесь, что вы выбрали товар или комплект из выпадающего списка."
+                "error": "Добавьте хотя бы 1 позицию."
             })
 
-        # 3. Создаём резерв и обрабатываем позиции
-        reservation = Reservation.objects.create(client=client)
-        error_found = False
-
-        for item_val, quantity in items:
-            if item_val.startswith('p_'):
-                # Это обычный товар
-                product_id = item_val[2:]
-                try:
-                    product = Product.objects.get(id=product_id)
-                    ReservationItem.objects.create(
-                        reservation=reservation,
-                        product=product,
-                        quantity=quantity
-                    )
-                except Product.DoesNotExist:
-                    error_found = True
-                    messages.error(request, f"Товар ID {product_id} не найден")
-                    break
-
-            elif item_val.startswith('a_'):
-                # Это готовая сборка (комплект)
-                assembly_id = item_val[2:]
-                available = Assembly.objects.filter(
-                    id=assembly_id,
-                    status="READY",
-                    reservation__isnull=True
-                )[:quantity]
-
-                if len(available) < quantity:
-                    error_found = True
-                    kit_name = available[0].kit.name if available else "Неизвестный комплект"
-                    messages.error(request,
-                                   f"Недостаточно свободных сборок '{kit_name}'. Доступно: {len(available)}, запрошено: {quantity}")
-                    break
-
-                for assembly in available:
-                    assembly.status = "RESERVED"
-                    assembly.reservation = reservation
-                    assembly.save()
-
-        if error_found:
-            reservation.delete()
+        # 3. Создаём резерв через сервис
+        try:
+            ReservationService.create_reservation(
+                client=client,
+                product_lines=product_lines,
+                assembly_lines=assembly_lines,
+            )
+        except ValidationError as e:
+            messages.error(request, str(e))
             return redirect('create_reservation')
 
         messages.success(request, f"Резерв для '{client.name}' успешно создан!")
@@ -249,7 +226,7 @@ def create_reservation(request):
         "available_assemblies": available_assemblies
     })
 
-def active_service(request):
+def active_service(request: HttpRequest) -> HttpResponse:
     """Устройства в ремонте, отсортированные по дате приёма."""
     query = request.GET.get('q', '')
     units = Unit.objects.filter(status="IN_SERVICE").order_by('service_received_at')
@@ -259,7 +236,7 @@ def active_service(request):
     return render(request, "inventory/service.html", {"units": units, "query": query})
 
 
-def add_units(request):
+def add_units(request: HttpRequest) -> HttpResponse:
     """Приёмка партии: создание N Unit'ов."""
     products = Product.objects.all()
 
@@ -279,7 +256,7 @@ def add_units(request):
     return render(request, "inventory/add_units.html", {"products": products})
 
 
-def add_product(request):
+def add_product(request: HttpRequest) -> HttpResponse:
     """Создание номенклатуры с возможностью создать новый тип оборудования"""
     equipment_types = EquipmentType.objects.all()
 
@@ -347,7 +324,7 @@ def add_product(request):
     return render(request, "inventory/add_product.html", {"equipment_types": equipment_types})
 
 
-def prepare_list(request):
+def prepare_list(request: HttpRequest) -> HttpResponse:
     """Товары с Unit'ами без серийников (только маркируемые)."""
     products = Product.objects.annotate(
         units_to_prepare=Count('unit', filter=Q(unit__status='IN_STOCK'))
@@ -355,7 +332,7 @@ def prepare_list(request):
     return render(request, "inventory/prepare_list.html", {"products": products})
 
 
-def prepare_product(request, product_id):
+def prepare_product(request: HttpRequest, product_id: int) -> HttpResponse:
     """Ввод серийника и перевод Unit в READY. Одна кнопка на строку."""
     product = Product.objects.get(id=product_id)
     units = Unit.objects.filter(product=product, status='IN_STOCK')
@@ -381,10 +358,10 @@ def prepare_product(request, product_id):
 
 
 
-# Завершение серивиса(смена статуса)
-def finish_service(request, unit_id):
+# Завершение сервиса (смена статуса)
+@transaction.atomic
+def finish_service(request: HttpRequest, unit_id: int) -> HttpResponse:
     """Перенос оборудования из сервиса (ремонт закончен)"""
-    # Защита: принимаем только POST
     if request.method != "POST":
         return redirect('service')
 
@@ -394,17 +371,16 @@ def finish_service(request, unit_id):
         messages.error(request, "Устройство не найдено")
         return redirect('service')
 
-    if unit.status == "IN_SERVICE":
-        unit.status = "READY"
-        unit.save()  # service_resolved_at проставится автоматически
+    try:
+        ServiceService.finish_unit_service(unit)
         messages.success(request, f"Ремонт завершён: {unit.serial_number}")
-    else:
-        messages.error(request, "Данный товар отсутствует в сервисе")
+    except ValidationError as e:
+        messages.error(request, str(e))
 
     return redirect('service')
 
 
-def shipment_registry(request):
+def shipment_registry(request: HttpRequest) -> HttpResponse:
     """История отгруженных серийников с возможностью поиска."""
     query = request.GET.get('q', '')
     units = Unit.objects.filter(
@@ -418,7 +394,8 @@ def shipment_registry(request):
     return render(request, "inventory/shipment_registry.html", {"units": units, "query": query})
 
 
-def add_to_service(request):
+@transaction.atomic
+def add_to_service(request: HttpRequest) -> HttpResponse:
     """Добавление в сервис"""
     if request.method == "POST":
         unit_id = request.POST.get("unit")
@@ -442,28 +419,17 @@ def add_to_service(request):
             messages.error(request, "Неисправность не найдена")
             return redirect('add_to_service')
 
-        # 🔒 НОВАЯ ПРОВЕРКА: устройство не должно быть частью сборки
-        if AssemblyUnit.objects.filter(unit=unit).exists():
-            assembly = AssemblyUnit.objects.filter(unit=unit).first().assembly
-            messages.error(
-                request,
-                f"Устройство {unit.serial_number or unit.id} уже входит в состав сборки #{assembly.id} "
-                f"({assembly.kit.name}). Сначала разберите сборку или отправьте в сервис весь комплект."
+        try:
+            ServiceService.send_unit_to_service(
+                unit=unit,
+                defect_type=defect_type,
+                comment=service_comment,
+                serial_number=serial_number,
             )
-            return redirect('add_to_service')
-
-        if serial_number:
-            unit.serial_number = serial_number
-
-        if unit.status in ["READY", "IN_STOCK"]:
-            unit.status = 'IN_SERVICE'
-            unit.defect_type = defect_type
-            unit.service_comment = service_comment
-            unit.save()
             messages.success(request, f"Оборудование отправлено в сервис: {unit.serial_number or 'без серийника'}")
             return redirect('service')
-        else:
-            messages.error(request, f"Устройство нельзя отправить в сервис (статус: {unit.status})")
+        except ValidationError as e:
+            messages.error(request, str(e))
             return redirect('add_to_service')
 
     defect_types = DefectType.objects.all()
@@ -471,7 +437,7 @@ def add_to_service(request):
     return render(request, "inventory/add_to_service.html", {"units": units, "defect_types": defect_types})
 
 
-def create_defect_type(request):
+def create_defect_type(request: HttpRequest) -> HttpResponse:
     """Создание нового типа неисправности"""
     if request.method == "POST":
         defect_name = request.POST.get('defect_type')
@@ -495,35 +461,24 @@ def create_defect_type(request):
     return render(request, "inventory/create_defect_type.html")
 
 
-def cancel_reservation(request, reservation_id):
-    """Отмена резерва"""
+@transaction.atomic
+def cancel_reservation(request: HttpRequest, reservation_id: int) -> HttpResponse:
+    """Отмена резерва (товары + сборки)"""
     if request.method == "POST":
         reservation = Reservation.objects.get(id=reservation_id)
 
-        # Проверяем, не отгружен ли уже резерв
-        if reservation.is_fulfilled:
-            messages.error(request, "Этот резерв уже отгружен")
+        try:
+            ReservationService.cancel_reservation(reservation)
+        except ValidationError as e:
+            messages.error(request, str(e))
             return redirect('reservations')
 
-        # Проверяем, не отменен ли уже
-        if reservation.is_canceled:
-            messages.error(request, "Этот резерв уже отменен")
-            return redirect('reservations')
-
-        # Отменяем резерв
-        reservation.is_canceled = True
-        reservation.save()
         messages.success(request, "Резерв успешно отменён")
         return redirect('reservations')
 
-    # Если пришел GET-запрос, просто перенаправляем на список резервов
     return redirect('reservations')
 
-
-
-
-
-def edit_unit(request, unit_id):
+def edit_unit(request: HttpRequest, unit_id: int) -> HttpResponse:
     """Редактирование позиции на складе"""
     # 1. Получаем конкретный объект.
     # get_object_or_404 сам выдаст красивую ошибку 404, если такого ID нет в базе.
@@ -569,7 +524,8 @@ def edit_unit(request, unit_id):
     })
 
 
-def delete_unit(request, unit_id):
+@transaction.atomic
+def delete_unit(request: HttpRequest, unit_id: int) -> HttpResponse:
     """Удаление позиции со склада"""
     unit = get_object_or_404(Unit, id=unit_id)
     # Проверка безопасности
@@ -585,7 +541,7 @@ def delete_unit(request, unit_id):
     return redirect('unit_list')
 
 
-def unit_list(request):
+def unit_list(request: HttpRequest) -> HttpResponse:
     """Список всех устройств с возможностью поиска."""
     query = request.GET.get('q', '')
     units = Unit.objects.all().order_by('-created_at').select_related('product')
@@ -595,7 +551,68 @@ def unit_list(request):
 
     return render(request, "inventory/unit_list.html", {"units": units, "query": query})
 
-def search_unit(request):
+def search_unit(request: HttpRequest) -> HttpResponse:
+    """Поиск устройства по серийному номеру"""
+    query = request.GET.get('q', '')
+    if not query:
+        return redirect('dashboard')
+    units = Unit.objects.filter(serial_number__icontains=query).select_related('product')
+    return render(request, 'inventory/search_unit.html', {
+        'query': query,
+        'units': units
+    })
+def kit_potential(request: HttpRequest, kit_id: int) -> HttpResponse:
+    """Детальный расчёт потенциала комплекта"""
+    available_units = AssemblyService.get_available_units_for_kit(kit)
+    potential = AssemblyService.calculate_potential_count(kit)
+
+    from django.db.models import Sum
+    from inventory.models import ReservationLine
+
+    components_info = []
+    bottleneck = None
+    min_possible = float('inf')
+
+    for component in kit.components.all():
+        units_qs = available_units[component]
+        total_available = units_qs.count()
+
+        # Зарезервировано как компоненты (ReservationLine type=product)
+        reserved_as_component = ReservationLine.objects.filter(
+            type="product",
+            product=component.product,
+            reservation__is_fulfilled=False,
+            reservation__is_canceled=False
+        ).aggregate(total=Sum('quantity'))['total'] or 0
+
+        # Резервы готовых сборок этого комплекта (съедают компоненты)
+        reserved_assemblies = Assembly.objects.filter(kit=kit, status="RESERVED").count()
+        ready_assemblies = Assembly.objects.filter(kit=kit, status="READY").count()
+        deficit = max(0, reserved_assemblies - ready_assemblies)
+        components_needed_for_deficit = deficit * component.quantity
+
+        free_components = total_available - reserved_as_component - components_needed_for_deficit
+        possible = free_components // component.quantity if component.quantity > 0 else 0
+
+        if possible < min_possible:
+            min_possible = possible
+            bottleneck = component
+
+        components_info.append({
+            "component": component,
+            "total_available": total_available,
+            "reserved_as_component": reserved_as_component,
+            "components_needed_for_deficit": components_needed_for_deficit,
+            "free_components": free_components,
+            "possible": possible,
+        })
+
+    return render(request, "inventory/kit_potential.html", {
+        "kit": kit,
+        "potential": potential,
+        "components_info": components_info,
+        "bottleneck": bottleneck,
+    })
     query = request.GET.get('q', '')
     if not query:
         return redirect('dashboard')
@@ -610,7 +627,8 @@ def search_unit(request):
 
 
 
-def create_assembly(request):
+@transaction.atomic
+def create_assembly(request: HttpRequest) -> HttpResponse:
     """Сборка комплекта из устройств (готовых и неготовых)"""
     kits = Kit.objects.filter(is_active=True)
     selected_kit = None
@@ -625,7 +643,8 @@ def create_assembly(request):
         selected_kit = get_object_or_404(Kit, id=kit_id)
         components = selected_kit.components.all()
 
-        assembly_units_to_create = []
+        # Собираем Units по компонентам
+        units_by_component = {}
         used_unit_ids = set()
         error_found = False
 
@@ -642,46 +661,38 @@ def create_assembly(request):
                     error_found = True
                     break
 
-                # Используем enumerate, чтобы получить индекс каждого экземпляра
+                units = []
                 for idx, unit_id in enumerate(selected_unit_ids):
                     if unit_id in used_unit_ids:
-                        messages.error(
-                            request,
-                            f"Устройство ID {unit_id} выбрано несколько раз. Выберите разные устройства."
-                        )
+                        messages.error(request, f"Устройство ID {unit_id} выбрано несколько раз")
                         error_found = True
                         break
                     used_unit_ids.add(unit_id)
 
                     try:
                         unit = Unit.objects.get(id=unit_id)
-
-                        if unit.status not in ["IN_STOCK", "READY"]:
-                            messages.error(
-                                request,
-                                f"Устройство {unit.serial_number or unit.id} имеет статус {unit.status}, а нужен IN_STOCK или READY"
-                            )
+                        if unit.status not in ("IN_STOCK", "READY"):
+                            messages.error(request, f"Unit #{unit.id} статус {unit.status}, нужен IN_STOCK или READY")
                             error_found = True
                             break
-
+                        if unit.product_id != component.product_id:
+                            messages.error(request, f"Unit #{unit.id} — {unit.product.name}, а нужен {component.product.name}")
+                            error_found = True
+                            break
                         if unit.status == "IN_STOCK":
                             serial = request.POST.get(f'serial_{component.id}_{idx}')
                             if not serial:
-                                messages.error(request, f"Для устройства {unit.id} нужно ввести серийный номер")
+                                messages.error(request, f"Для устройства {unit.id} нужен серийный номер")
                                 error_found = True
                                 break
-
-                            # Проверка на дубликат серийного номера
                             if Unit.objects.filter(serial_number=serial).exclude(id=unit.id).exists():
-                                messages.error(request, f"Серийный номер '{serial}' уже существует в базе данных")
+                                messages.error(request, f"Серийный номер '{serial}' уже занят")
                                 error_found = True
                                 break
-
                             unit.serial_number = serial
                             unit.status = "READY"
-                            unit.save()
-
-                        assembly_units_to_create.append(unit)
+                            unit.save(update_fields=["serial_number", "status", "updated_at"])
+                        units.append(unit)
                     except Unit.DoesNotExist:
                         messages.error(request, f"Устройство ID {unit_id} не найдено")
                         error_found = True
@@ -689,6 +700,7 @@ def create_assembly(request):
 
                 if error_found:
                     break
+                units_by_component[component] = units
             else:
                 # Немаркируемые: берём автоматически
                 available_units = Unit.objects.filter(
@@ -702,39 +714,25 @@ def create_assembly(request):
                     break
 
                 for unit in available_units:
-                    assembly_units_to_create.append(unit)
                     used_unit_ids.add(unit.id)
+                units_by_component[component] = list(available_units)
 
-        if not error_found and assembly_units_to_create:
-            # Получаем серийный номер комплекта из формы
+        if not error_found:
             assembly_serial = request.POST.get('assembly_serial', '').strip()
-
-            # Проверка: серийный номер обязателен
             if not assembly_serial:
                 messages.error(request, "Введите серийный номер комплекта")
                 return redirect('create_assembly')
 
-            # Проверка на дубликат серийного номера
-            if Assembly.objects.filter(serial_number=assembly_serial).exists():
-                messages.error(request, f"Комплект с серийным номером '{assembly_serial}' уже существует")
+            try:
+                AssemblyService.create_assembly(selected_kit, units_by_component, assembly_serial)
+            except ValidationError as e:
+                messages.error(request, str(e))
                 return redirect('create_assembly')
 
-            assembly = Assembly.objects.create(
-                kit=selected_kit,
-                status="READY",
-                serial_number=assembly_serial
-            )
-
-            for unit in assembly_units_to_create:
-                unit.status = "ASSEMBLED"
-                unit.save()
-                AssemblyUnit.objects.create(assembly=assembly, unit=unit)
-
-            messages.success(request, f"Сборка #{assembly.id} успешно создана!")
+            messages.success(request, "Сборка успешно создана!")
             return redirect('dashboard')
 
-        if error_found:
-            return redirect('create_assembly')
+        return redirect('create_assembly')
 
     # GET-запрос
     kit_id = request.GET.get('kit')
@@ -758,18 +756,18 @@ def create_assembly(request):
     })
 
 
-def assembly_list(request):
+def assembly_list(request: HttpRequest) -> HttpResponse:
     """Реестр всех сборок (комплектов)"""
-    assemblies = Assembly.objects.select_related('kit', 'reservation__client').order_by('-id')
+    assemblies = Assembly.objects.select_related('kit').order_by('-id')
     return render(request, "inventory/assembly_list.html", {
         "assemblies": assemblies
     })
 
 
-def assembly_detail(request, assembly_id):
+def assembly_detail(request: HttpRequest, assembly_id: int) -> HttpResponse:
     """Детальная информация о конкретной сборке (состав)"""
     assembly = get_object_or_404(
-        Assembly.objects.select_related('kit', 'reservation__client'),
+        Assembly.objects.select_related('kit'),
         id=assembly_id
     )
     # Получаем все устройства, которые входят в эту сборку
@@ -779,3 +777,92 @@ def assembly_detail(request, assembly_id):
         "assembly": assembly,
         "assembly_units": assembly_units
     })
+
+@transaction.atomic
+def disassemble_assembly(request: HttpRequest, assembly_id: int) -> HttpResponse:
+    """Разборка сборки (READY → Units на склад)"""
+    if request.method == "POST":
+        assembly = get_object_or_404(Assembly, id=assembly_id)
+        try:
+            units = AssemblyService.disassembly(assembly)
+            messages.success(request, f"Сборка разобрана: {len(units)} устройств возвращено на склад")
+        except ValidationError as e:
+            messages.error(request, str(e))
+    return redirect('assembly_list')
+
+
+@transaction.atomic
+def finish_assembly_service(request: HttpRequest, assembly_id: int) -> HttpResponse:
+    """Завершение ремонта сборки (IN_SERVICE → READY)"""
+    if request.method == "POST":
+        assembly = get_object_or_404(Assembly, id=assembly_id, status="IN_SERVICE")
+        try:
+            ServiceService.finish_assembly_service(assembly)
+            messages.success(request, f"Ремонт сборки #{assembly.id} завершён")
+        except ValidationError as e:
+            messages.error(request, str(e))
+    return redirect('assembly_list')
+
+
+@transaction.atomic
+def assembly_to_service(request: HttpRequest, assembly_id: int) -> HttpResponse:
+    """Отправка сборки в сервис (READY/RESERVED → IN_SERVICE)"""
+    assembly = get_object_or_404(Assembly, id=assembly_id)
+
+    if request.method == "POST":
+        defect_type_id = request.POST.get("defect_type")
+        comment = request.POST.get("service_comment", "")
+        task_url = request.POST.get("task_url", "")
+
+        try:
+            defect_type = DefectType.objects.get(id=defect_type_id)
+        except DefectType.DoesNotExist:
+            messages.error(request, "Неисправность не найдена")
+            return redirect('assembly_detail', assembly_id=assembly_id)
+
+        try:
+            ServiceService.send_assembly_to_service(assembly, defect_type, comment, task_url)
+            messages.success(request, f"Сборка #{assembly.id} отправлена в сервис")
+        except ValidationError as e:
+            messages.error(request, str(e))
+
+        return redirect('assembly_list')
+
+    defect_types = DefectType.objects.all()
+    return render(request, "inventory/assembly_to_service.html", {
+        "assembly": assembly,
+        "defect_types": defect_types,
+    })
+
+
+@transaction.atomic
+def ship_assembly(request: HttpRequest, assembly_id: int) -> HttpResponse:
+    """Отгрузка сборки клиенту (статус → SOLD)"""
+    if request.method == "POST":
+        try:
+            assembly = Assembly.objects.get(id=assembly_id, status="RESERVED")
+            line = assembly.reservation_lines.first()
+            if line and line.reservation:
+                reservation = line.reservation
+                ReservationService.ship_reservation(reservation, selected_units={})
+            else:
+                assembly.status = "SOLD"
+                assembly.save(update_fields=["status", "updated_at"])
+                ReservationLine.objects.filter(type="assembly", assembly=assembly).delete()
+            messages.success(request, f"Комплект '{assembly.serial_number or f'#{assembly.id}'}' отгружен клиенту")
+        except (Assembly.DoesNotExist, ValidationError) as e:
+            messages.error(request, str(e) if isinstance(e, ValidationError) else "Сборка не найдена или уже не в резерве")
+    return redirect('reservations')
+
+
+@transaction.atomic
+def cancel_assembly_reservation(request: HttpRequest, assembly_id: int) -> HttpResponse:
+    """Отмена резерва сборки (статус → READY)"""
+    if request.method == "POST":
+        try:
+            assembly = Assembly.objects.get(id=assembly_id, status="RESERVED")
+            ReservationService.cancel_assembly_reservation(assembly)
+            messages.success(request, f"Резерв комплекта '{assembly.serial_number or f'#{assembly.id}'}' отменён")
+        except (Assembly.DoesNotExist, ValidationError) as e:
+            messages.error(request, str(e) if isinstance(e, ValidationError) else "Сборка не найдена или уже не в резерве")
+    return redirect('reservations')

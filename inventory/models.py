@@ -35,6 +35,50 @@ class Reservation(models.Model):
         return f"Резерв для {self.client} от {self.created_at:%d.%m.%Y}"
 
 
+# Позиция резерва (универсальная: товар, сборка или комплект на сборку)
+class ReservationLine(models.Model):
+    TYPE_PRODUCT = "product"
+    TYPE_ASSEMBLY = "assembly"
+    TYPE_KIT = "kit"
+
+    TYPE_CHOICES = [
+        (TYPE_PRODUCT, "Товар"),
+        (TYPE_ASSEMBLY, "Готовая сборка"),
+        (TYPE_KIT, "Комплект (собрать под заказ)"),
+    ]
+
+    reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE, related_name="lines", verbose_name="Резерв")
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name="Тип позиции")
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Количество")
+
+    # Только одно из трёх заполнено
+    product = models.ForeignKey("Product", on_delete=models.PROTECT, null=True, blank=True, verbose_name="Товар")
+    assembly = models.ForeignKey("Assembly", on_delete=models.PROTECT, null=True, blank=True, related_name="reservation_lines", verbose_name="Сборка")
+    kit = models.ForeignKey("Kit", on_delete=models.PROTECT, null=True, blank=True, verbose_name="Комплект")
+
+    class Meta:
+        verbose_name = "Позиция резерва"
+        verbose_name_plural = "Позиции резервов"
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(type="product", product__isnull=False, assembly__isnull=True, kit__isnull=True) |
+                    models.Q(type="assembly", product__isnull=True, assembly__isnull=False, kit__isnull=True) |
+                    models.Q(type="kit", product__isnull=True, assembly__isnull=True, kit__isnull=False)
+                ),
+                name="reservation_line_one_target"
+            )
+        ]
+
+    def __str__(self):
+        if self.type == self.TYPE_PRODUCT:
+            return f"{self.product} × {self.quantity}"
+        elif self.type == self.TYPE_ASSEMBLY:
+            return f"Сборка #{self.assembly_id} × {self.quantity}"
+        else:
+            return f"Комплект {self.kit} × {self.quantity}"
+
+
 # Тип оборудования
 class EquipmentType(models.Model):
     name = models.CharField(max_length=100, verbose_name="Наименование")
@@ -110,10 +154,11 @@ class Batch(models.Model):
 # Физическая единица товара с серийным номером
 class Unit(models.Model):
     STATUS_CHOICES = [
-        ("IN_STOCK","На складе"),
-        ("READY","Готово к продаже"),
+        ("IN_STOCK", "На складе"),
+        ("READY", "Готово к продаже"),
+        ("ASSEMBLED", "В составе комплекта"),
         ("IN_SERVICE", "В сервисе"),
-        ("SOLD","Продано")
+        ("SOLD", "Продано")
     ]
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name= "Товар")
     serial_number = models.CharField(max_length=100, unique=True, null=True, blank=True, verbose_name="Серийный номер")
@@ -131,6 +176,11 @@ class Unit(models.Model):
     class Meta:
         verbose_name = "Единица техники"
         verbose_name_plural = "Единицы техники"
+        indexes = [
+            models.Index(fields=['status', 'product']),
+            models.Index(fields=['reservation', 'status']),
+            models.Index(fields=['serial_number']),
+        ]
 
     def __str__(self):
         if self.serial_number:
@@ -150,27 +200,13 @@ class Unit(models.Model):
     def save(self,*args, **kwargs):
         if self.status == "IN_SERVICE" and not self.service_received_at:
             self.service_received_at = timezone.now()
-        if self.status != "IN_SERVECE" and self.service_received_at and not self.service_resolved_at:
+        if self.status != "IN_SERVICE" and self.service_received_at and not self.service_resolved_at:
             self.service_resolved_at = timezone.now()
         super().save(*args, **kwargs)
 
 
 
 
-
-# Позиция
-class ReservationItem(models.Model):
-    reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE, verbose_name="Резервы" )
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Товар")
-    quantity = models.PositiveIntegerField(verbose_name="Количество в резерве")
-
-
-    class Meta:
-        verbose_name = "Позиция резерва"
-        verbose_name_plural = "Позиции резервов"
-
-    def __str__(self):
-        return f"{self.product}  - {self.quantity}"
 
 #Отгрузки
 class Shipment(models.Model):
@@ -238,8 +274,9 @@ class Kit(models.Model):
                 status__in=["IN_STOCK", "READY"]
             ).count()
 
-            # 2. Вычитаем зарезервированные (как компоненты)
-            reserved_as_component = ReservationItem.objects.filter(
+            # 2. Вычитаем зарезервированные (как компоненты) через ReservationLine
+            reserved_as_component = ReservationLine.objects.filter(
+                type="product",
                 product=comp.product,
                 reservation__is_fulfilled=False,
                 reservation__is_canceled=False
@@ -316,13 +353,6 @@ class Assembly(models.Model):
         ],
         default="READY",
         verbose_name="Статус сборки"
-    )
-    reservation = models.ForeignKey(
-        Reservation,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Резерв"
     )
     class Meta:
         verbose_name = "Сборка"

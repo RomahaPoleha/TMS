@@ -50,7 +50,7 @@
         {% for kit in kits %}
         <tr>
             <td><strong>{{ kit.name }}</strong></td>
-            <td><span class="badge bg-info">{{ kit.get_potential_count }}</span></td>
+            <td><span class="badge bg-info">{{ kit.get_potential_count }}</span> <a href="{% url 'kit_potential' kit.id %}" class="btn btn-sm btn-outline-info ms-2">🔍</a></td>
             <td><span class="badge bg-success">{{ kit.ready_assemblies }}</span></td>
             <td><span class="badge bg-warning">{{ kit.reserved_assemblies }}</span></td>
         </tr>

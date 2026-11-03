@@ -50,17 +50,28 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if assembly.reservation and assembly.reservation.client %}
-                                    {{ assembly.reservation.client.name }}
-                                {% else %}
-                                    <span class="text-muted">—</span>
-                                {% endif %}
+                                {% with reservation_line=assembly.reservation_lines.first %}
+                                    {% if reservation_line and reservation_line.reservation.client %}
+                                        {{ reservation_line.reservation.client.name }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                {% endwith %}
                             </td>
                             <td>{{ assembly.created_at|date:"d.m.Y H:i" }}</td>
                             <td class="text-center">
                                 <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-sm btn-outline-info">
                                     🔍 Состав
                                 </a>
+                                {% if assembly.status == "READY" %}
+                                <form method="POST" action="{% url 'disassemble_assembly' assembly.id %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Разобрать сборку #{{ assembly.id }}?')">
+                                        🔧 Разобрать
+                                    </button>
+                                </form>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

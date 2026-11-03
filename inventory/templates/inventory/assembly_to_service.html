@@ -1,0 +1,57 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<h2>Отправить сборку в сервис</h2>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">{{ assembly.kit.name }}</h5>
+        <p class="card-text">
+            {% if assembly.serial_number %}
+                <strong>Серийный номер:</strong> {{ assembly.serial_number }}
+            {% else %}
+                <strong>ID:</strong> #{{ assembly.id }}
+            {% endif %}
+            <br>
+            <strong>Статус:</strong> {{ assembly.get_status_display }}
+            <br>
+            <strong>Состав:</strong> {{ assembly.units.count }} устройств
+        </p>
+    </div>
+</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label for="defect_type" class="form-label">Вид неисправности:</label>
+        <select name="defect_type" id="defect_type" class="form-select" required>
+            <option value="">-- Выберите неисправность --</option>
+            {% for dt in defect_types %}
+                <option value="{{ dt.id }}">{{ dt.name }}</option>
+            {% endfor %}
+        </select>
+        <a href="{% url 'create_defect_type' %}" class="btn btn-sm btn-outline-secondary mt-2">+ Создать новую неисправность</a>
+    </div>
+
+    <div class="mb-3">
+        <label for="service_comment" class="form-label">Комментарий:</label>
+        <textarea name="service_comment" id="service_comment" class="form-control" rows="3" required></textarea>
+    </div>
+
+    <div class="mb-3">
+        <label for="task_url" class="form-label">Ссылка на задачу:</label>
+        <input type="url" name="task_url" id="task_url" class="form-control" placeholder="https://...">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Отправить в сервис</button>
+    <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-secondary">Отмена</a>
+</form>
+
+{% endblock %}

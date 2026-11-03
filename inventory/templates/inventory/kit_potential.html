@@ -1,0 +1,63 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="mb-4">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm mb-3">← Назад к дашборду</a>
+        <h1 class="h3 mb-1">🔍 Потенциал комплекта: {{ kit.name }}</h1>
+        <p class="text-muted mb-0">Детальный расчёт — сколько комплектов можно собрать прямо сейчас</p>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h4 class="mb-0">
+                Можно собрать: <span class="badge bg-info fs-5">{{ potential }}</span> шт.
+                {% if bottleneck %}
+                    <small class="text-muted ms-3">Бутылочное горлышко: {{ bottleneck.product.name }}</small>
+                {% endif %}
+            </h4>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Компонент</th>
+                        <th class="text-center">На складе</th>
+                        <th class="text-center">Зарезервировано</th>
+                        <th class="text-center">Нужно для резервов</th>
+                        <th class="text-center">Свободно</th>
+                        <th class="text-center">Макс. комплектов</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for info in components_info %}
+                    <tr {% if info.component == bottleneck %}class="table-warning"{% endif %}>
+                        <td>
+                            <strong>{{ info.component.product.name }}</strong>
+                            <br>
+                            <small class="text-muted">× {{ info.component.quantity }} шт. в комплекте</small>
+                        </td>
+                        <td class="text-center">{{ info.total_available }}</td>
+                        <td class="text-center">{{ info.reserved_as_component }}</td>
+                        <td class="text-center">{{ info.components_needed_for_deficit }}</td>
+                        <td class="text-center">{{ info.free_components }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">{{ info.possible }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a href="{% url 'create_assembly' %}?kit={{ kit.id }}" class="btn btn-success">
+            🔧 Собрать комплект
+        </a>
+    </div>
+</div>
+{% endblock %}
