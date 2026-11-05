@@ -2,11 +2,7 @@
 
 {% block content %}
 
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-    {% endfor %}
-{% endif %}
+
 
 <h2>Редактирование устройства</h2>
 <h3>Текущий серийный номер: {{ unit.serial_number }}</h3>

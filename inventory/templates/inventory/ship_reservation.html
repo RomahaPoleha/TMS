@@ -4,11 +4,7 @@
 <h2>Отгрузка резерва #{{ reservation.id }}</h2>
 <p><strong>Клиент:</strong> {{ reservation.client }}</p>
 
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-    {% endfor %}
-{% endif %}
+
 
 <form method="POST">
     {% csrf_token %}

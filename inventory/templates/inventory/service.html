@@ -4,13 +4,7 @@
 
 {% block content %}
 
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
-        </div>
-    {% endfor %}
-{% endif %}
+
 
 <h2>Устройства в сервисе</h2>
 <form method="GET" class="mb-3">

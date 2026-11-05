@@ -3,11 +3,7 @@
 {% block content %}
 <h2>Сборка комплекта</h2>
 
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-    {% endfor %}
-{% endif %}
+
 
 <!-- Форма выбора комплекта -->
 <form method="GET" class="mb-4 p-3 bg-light rounded">
