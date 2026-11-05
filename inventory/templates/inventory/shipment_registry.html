@@ -4,7 +4,7 @@
 <h2>Реестр отгрузок</h2>
 <form method="GET" class="mb-3">
     <div class="input-group">
-        <input type="text" name="q" class="form-control" placeholder="Поиск по серийному номеру..." value="{{ query }}">
+        <input type="text" name="q" class="form-control" placeholder="Поиск по серийному номеру, клиенту, товару или комплекту..." value="{{ query }}">
         <button type="submit" class="btn btn-outline-primary">Найти</button>
         {% if query %}
             <a href="{{ request.path }}" class="btn btn-outline-secondary">Сбросить</a>
@@ -19,6 +19,7 @@
             <th>Клиент</th>
             <th>Товар</th>
             <th>Серийный номер</th>
+            <th>Комплект</th>
         </tr>
     </thead>
     <tbody>
@@ -28,6 +29,18 @@
             <td>{{ unit.reservation.client }}</td>
             <td>{{ unit.product }}</td>
             <td>{{ unit.serial_number }}</td>
+            <td>
+                {% with au=unit.assemblyunit_set.first %}
+                    {% if au %}
+                        <span class="badge bg-info">{{ au.assembly.kit.name }}</span>
+                        {% if au.assembly.serial_number %}
+                            <br><small class="text-muted">{{ au.assembly.serial_number }}</small>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                {% endwith %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>

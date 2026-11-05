@@ -3,6 +3,7 @@
 {% block content %}
 
 <h2>Результаты поиска по запросу: {{ query }}</h2>
+<a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm mb-3">← Назад</a>
 
 {% if units %}
 <table class="table table-striped table-hover table-bordered">

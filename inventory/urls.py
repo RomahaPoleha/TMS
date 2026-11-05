@@ -23,7 +23,6 @@ urlpatterns = [
     path('units/', views.unit_list, name = 'unit_list'),
     path('search/', views.search_unit, name = 'search_unit'),
     path('assembly/add/', views.create_assembly, name='create_assembly'),
-    path('assemblies/', views.assembly_list, name='assembly_list'),
     path('assemblies/<int:assembly_id>/', views.assembly_detail, name='assembly_detail'),
     path('assemblies/<int:assembly_id>/finish-service/', views.finish_assembly_service, name='finish_assembly_service'),
 path('assemblies/<int:assembly_id>/service/', views.assembly_to_service, name='assembly_to_service'),

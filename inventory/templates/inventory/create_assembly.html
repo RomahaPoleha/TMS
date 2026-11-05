@@ -64,7 +64,7 @@
                                             required>
                                         <option value="">-- Выберите устройство --</option>
                                         {% for unit in data.available_units %}
-                                            <option value="{{ unit.id }}" data-status="{{ unit.status }}">
+                                            <option value="{{ unit.id }}" data-status="{{ unit.status }}" data-has-serial="{% if unit.serial_number %}true{% else %}false{% endif %}">
                                                 {% if unit.serial_number %}
                                                     {{ unit.serial_number }} (READY)
                                                 {% else %}
@@ -94,19 +94,21 @@
         </div>
     {% endfor %}
 
-    <button type="submit" class="btn btn-success btn-lg">Собрать комплект</button>
-    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">Отмена</a>
+<div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-success btn-lg">🔧 Собрать комплект</button>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">❌ Отмена</a>
+    </div>
 </form>
 
 <script>
 document.querySelectorAll('.unit-select').forEach(function(select) {
     select.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
-        const status = selectedOption.getAttribute('data-status');
+        const hasSerial = selectedOption.getAttribute('data-has-serial');
         const requiresSerial = this.getAttribute('data-requires-serial');
         const serialInput = this.parentElement.querySelector('.serial-input');
 
-        if (status === 'IN_STOCK' && requiresSerial === 'true') {
+        if (hasSerial === 'false' && requiresSerial === 'true') {
             serialInput.style.display = 'block';
             serialInput.querySelector('input').required = true;
         } else {
@@ -115,6 +117,10 @@ document.querySelectorAll('.unit-select').forEach(function(select) {
             serialInput.querySelector('input').value = '';
         }
     });
+    // Trigger on load in case a value is pre-selected
+    if (select.value) {
+        select.dispatchEvent(new Event('change'));
+    }
 });
 </script>
 {% endif %}

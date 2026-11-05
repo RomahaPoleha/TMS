@@ -48,8 +48,10 @@
     <small class="form-text text-muted">Если нужного типа нет в списке, введите его название здесь</small>
 </div>
 
-    <button type="submit" class="btn btn-primary">Создать товар</button>
-    <a href="{% url 'add_units' %}" class="btn btn-secondary">Отмена</a>
+<div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">➕ Создать товар</button>
+        <a href="{% url 'add_units' %}" class="btn btn-secondary">❌ Отмена</a>
+    </div>
 </form>
 
 {% endblock %}

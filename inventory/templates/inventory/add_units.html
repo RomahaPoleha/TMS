@@ -1,26 +1,33 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-
-<h2>Приход</h2>
+<h2>Приёмка товара</h2>
 
 <form method="POST">
     {% csrf_token %}
 
-    <label for="product">Товар:</label>
-    <select name="product" id="product" required>
-        <option value="">-- Выберите товар --</option>
-        {% for product in products %}
-            <option value="{{ product.id }}">{{ product }}</option>
-        {% endfor %}
-    </select>
-    <a href="{% url 'add_product' %}" class="btn btn-sm btn-outline-primary">➕ Новый товар</a>
+    <div class="mb-3">
+        <label for="product" class="form-label">Товар:</label>
+        <div class="input-group">
+            <select name="product" id="product" class="form-select" required>
+                <option value="">-- Выберите товар --</option>
+                {% for product in products %}
+                    <option value="{{ product.id }}">{{ product }}</option>
+                {% endfor %}
+            </select>
+            <a href="{% url 'add_product' %}" class="btn btn-outline-secondary">➕ Новый товар</a>
+        </div>
+    </div>
 
-    <label for="quantity">Количество:</label>
-    <input type="number" name="quantity" id="quantity" min="1" required>
+    <div class="mb-3">
+        <label for="quantity" class="form-label">Количество:</label>
+        <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+    </div>
 
-    <button type="submit">Принять на склад</button>
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">📥 Принять на склад</button>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">❌ Отмена</a>
+    </div>
 </form>
-
 
 {% endblock %}

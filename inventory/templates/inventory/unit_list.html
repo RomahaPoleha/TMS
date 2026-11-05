@@ -32,11 +32,13 @@
             <td>{% if unit.serial_number %}{{ unit.serial_number }}{% else %}(без серийника){% endif %}</td>
             <td>{{ unit.status }}</td>
             <td>
-                <a href="{% url 'edit_unit' unit.id %}" class="btn btn-sm btn-outline-primary me-1">Редактировать</a>
-                <form method="POST" action="{% url 'delete_unit' unit.id %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить устройство?')">Удалить</button>
-                </form>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="{% url 'edit_unit' unit.id %}" class="btn btn-outline-primary">✏️ Редактировать</a>
+                    <form method="POST" action="{% url 'delete_unit' unit.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Удалить устройство?')">🗑️ Удалить</button>
+                    </form>
+                </div>
             </td>
         </tr>
         {% endfor %}

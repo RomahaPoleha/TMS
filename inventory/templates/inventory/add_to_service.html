@@ -3,8 +3,6 @@
 {% block content %}
 <h2>Отправить оборудование в сервис</h2>
 
-
-
 <form method="POST">
     {% csrf_token %}
 
@@ -20,53 +18,52 @@
             {% endfor %}
         </select>
     </div>
-            <div class="mb-3" id="serial-block" style="display:none;">
-            <label for="serial_number" class="form-label">Серийный номер:</label>
-            <input type="text" name="serial_number" id="serial_number" class="form-control">
-        </div>
 
-    <select name="defect_type" class="form-select" required>
-    <option value="">-- Выберите неисправность --</option>
-            {% for dt in defect_types %}
-                <option value="{{ dt.id }}">{{ dt.name }}</option>
-            {% endfor %}
-        </select>
-    <a href="{% url 'create_defect_type' %}" class="btn btn-sm btn-outline-secondary">+ Создать новую неисправность</a>
+    <div class="mb-3" id="serial-block" style="display:none;">
+        <label for="serial_number" class="form-label">Серийный номер:</label>
+        <input type="text" name="serial_number" id="serial_number" class="form-control">
+    </div>
+
+    <div class="mb-3">
+        <label for="defect_type" class="form-label">Вид неисправности:</label>
+        <div class="input-group">
+            <select name="defect_type" id="defect_type" class="form-select" required>
+                <option value="">-- Выберите неисправность --</option>
+                {% for dt in defect_types %}
+                    <option value="{{ dt.id }}">{{ dt.name }}</option>
+                {% endfor %}
+            </select>
+            <a href="{% url 'create_defect_type' %}" class="btn btn-outline-secondary">+ Новая</a>
+        </div>
+    </div>
 
     <div class="mb-3">
         <label for="service_comment" class="form-label">Комментарий:</label>
-        <textarea name="service_comment" id="service_comment" class="form-control" rows="3"></textarea>
+        <textarea name="service_comment" id="service_comment" class="form-control" rows="3" required></textarea>
     </div>
 
-    <button type="submit" class="btn btn-primary">Отправить в сервис</button>
-    <a href="{% url 'service' %}" class="btn btn-secondary">Отмена</a>
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">🔧 Отправить в сервис</button>
+        <a href="{% url 'service' %}" class="btn btn-secondary">❌ Отмена</a>
+    </div>
 </form>
-
 
 <script>
 document.getElementById('unit').addEventListener('change', function() {
-    // Получаем выбранный option
     const selectedOption = this.options[this.selectedIndex];
-
-    // Читаем атрибут data-has-serial
     const hasSerial = selectedOption.getAttribute('data-has-serial');
-
-    // Находим блок и поле ввода
     const serialBlock = document.getElementById('serial-block');
     const serialInput = document.getElementById('serial_number');
 
-    // Если серийника нет — показываем поле и делаем обязательным
     if (hasSerial === 'false') {
         serialBlock.style.display = 'block';
         serialInput.required = true;
     } else {
-        // Иначе скрываем и убираем обязательность
         serialBlock.style.display = 'none';
         serialInput.required = false;
         serialInput.value = '';
     }
 });
 </script>
-
 
 {% endblock %}

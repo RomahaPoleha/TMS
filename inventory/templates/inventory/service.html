@@ -16,7 +16,7 @@
         {% endif %}
     </div>
 </form>
-<a href="{% url 'add_to_service' %}" class="btn btn-secondary btn-lg">Добавить устройство в сервис</a>
+<a href="{% url 'add_to_service' %}" class="btn btn-primary btn-lg mb-3">🔧 Добавить в сервис</a>
 
     <table class="table table-striped table-hover table-bordered">
     <thead>
@@ -39,9 +39,9 @@
             <td>{{ unit.service_comment }}</td>
         <td>
         <form method="POST" action="{% url 'finish_service' unit.id %}" style="display:inline;">
-       {% csrf_token %}
-       <button type="submit" class="btn btn-success btn-sm">Завершить ремонт</button>
-   </form>
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Завершить ремонт?')">✅ Завершить</button>
+    </form>
         </td>
     </tr>
     {% endfor %}

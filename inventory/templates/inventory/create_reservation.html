@@ -11,83 +11,120 @@
     {% csrf_token %}
 
     <!-- 1. Выбор клиента -->
-    <div class="mb-3">
-        <label for="client" class="form-label">Клиент:</label>
-        <select name="client" id="client" class="form-select">
-            <option value="">-- Выберите клиента --</option>
-            {% for client in clients %}
-                <option value="{{ client.id }}">{{ client.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <div class="mb-4">
-        <input type="text" name="new_client_name" class="form-control" placeholder="Или введите имя нового клиента">
-        <small class="form-text text-muted">Если нужного клиента нет в списке, введите его название здесь</small>
-    </div>
-
-    <hr>
-
-    <!-- 2. Единый список позиций (Товары + Комплекты) -->
-    <h4 class="mb-3">Позиции резерва</h4>
-
-    <div id="items-container">
-        <!-- Первая строка -->
-        <div class="item-row row mb-2 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label small text-muted">Товар или Готовый комплект</label>
-                <select name="item_1" class="form-select">
-                    <option value="">-- Выберите позицию --</option>
-
-                    <optgroup label="📦 Готовые комплекты">
-                        {% for assembly in available_assemblies %}
-                            <option value="a_{{ assembly.id }}">
-                                [КОМПЛЕКТ] {{ assembly.kit.name }}
-                            </option>
-                        {% endfor %}
-                    </optgroup>
-
-                    <optgroup label="🔧 Отдельные товары">
-                        {% for product in products %}
-                            <option value="p_{{ product.id }}">
-                                {{ product.name }}
-                            </option>
-                        {% endfor %}
-                    </optgroup>
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0">Клиент</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="client" class="form-label">Выберите из списка:</label>
+                <select name="client" id="client" class="form-select">
+                    <option value="">-- Выберите клиента --</option>
+                    {% for client in clients %}
+                        <option value="{{ client.id }}">{{ client.name }}</option>
+                    {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small text-muted">Кол-во</label>
-                <input type="number" name="quantity_1" min="1" value="1" class="form-control">
-            </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-danger btn-sm remove-item" style="display:none;" title="Удалить строку">❌</button>
+            <div class="text-center text-muted mb-2">— или —</div>
+            <div class="mb-0">
+                <label for="new_client_name" class="form-label">Введите имя нового клиента:</label>
+                <input type="text" name="new_client_name" id="new_client_name" class="form-control"
+                       placeholder="Название организации">
             </div>
         </div>
     </div>
 
-    <button type="button" class="btn btn-secondary mb-3" id="add-item">➕ Добавить позицию</button>
+    <hr>
 
-    <br>
-    <button type="submit" class="btn btn-primary btn-lg">Зарезервировать</button>
-    <a href="{% url 'reservations' %}" class="btn btn-outline-secondary btn-lg">Отмена</a>
+    <!-- 2. Позиции резерва -->
+    <h4 class="mb-3">Позиции резерва</h4>
+
+    <div id="items-container">
+        <div class="item-row card mb-2">
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-7">
+                        <label class="form-label small text-muted">Товар или Готовый комплект</label>
+                        <select name="item_1" class="form-select">
+                            <option value="">-- Выберите позицию --</option>
+                            <optgroup label="📦 Готовые комплекты">
+                                {% for assembly in available_assemblies %}
+                                    <option value="a_{{ assembly.id }}">
+                                        [КОМПЛЕКТ] {{ assembly.kit.name }}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="🔧 Отдельные товары">
+                                {% for product in products %}
+                                    <option value="p_{{ product.id }}">
+                                        {{ product.name }}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Кол-во</label>
+                        <input type="number" name="quantity_1" min="1" value="1" class="form-control">
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="display:none;" title="Удалить">❌</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-outline-primary mb-3" id="add-item">➕ Добавить позицию</button>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary btn-lg">📋 Зарезервировать</button>
+        <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">❌ Отмена</a>
+    </div>
 </form>
 
 <script>
 let itemCount = 1;
+
+function getSelectedValues() {
+    const selected = [];
+    document.querySelectorAll('.item-row select[name^="item_"]').forEach(function(sel) {
+        if (sel.value) selected.push(sel.value);
+    });
+    return selected;
+}
+
+function updateAllSelects() {
+    const selected = getSelectedValues();
+    document.querySelectorAll('.item-row select[name^="item_"]').forEach(function(sel) {
+        const currentValue = sel.value;
+        sel.querySelectorAll('option').forEach(function(opt) {
+            if (opt.value && opt.value !== currentValue && selected.includes(opt.value)) {
+                opt.disabled = true;
+                opt.hidden = true;
+            } else {
+                opt.disabled = false;
+                opt.hidden = false;
+            }
+        });
+    });
+}
 
 document.getElementById('add-item').addEventListener('click', function() {
     itemCount++;
     const firstRow = document.querySelector('.item-row');
     const newRow = firstRow.cloneNode(true);
 
-    // Меняем имена полей на уникальные
     const select = newRow.querySelector('select');
-    select.name = `item_${itemCount}`;
-    select.value = '';
+    select.name = 'item_' + itemCount;
+    select.selectedIndex = 0;
+    select.querySelectorAll('option').forEach(function(opt) {
+        opt.disabled = false;
+        opt.hidden = false;
+    });
 
-    const input = newRow.querySelector('input');
-    input.name = `quantity_${itemCount}`;
+    const input = newRow.querySelector('input[type="number"]');
+    input.name = 'quantity_' + itemCount;
     input.value = '1';
 
     const removeBtn = newRow.querySelector('.remove-item');
@@ -95,13 +132,28 @@ document.getElementById('add-item').addEventListener('click', function() {
 
     removeBtn.addEventListener('click', function() {
         newRow.remove();
+        updateAllSelects();
+    });
+
+    select.addEventListener('change', function() {
+        updateAllSelects();
     });
 
     document.getElementById('items-container').appendChild(newRow);
+    updateAllSelects();
 });
 
-document.querySelector('.remove-item').addEventListener('click', function() {
-    this.closest('.item-row').remove();
+document.querySelectorAll('.item-row select[name^="item_"]').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+        updateAllSelects();
+    });
+});
+
+document.querySelectorAll('.remove-item').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        this.closest('.item-row').remove();
+        updateAllSelects();
+    });
 });
 </script>
 

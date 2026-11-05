@@ -62,8 +62,10 @@
         {% endfor %}
     {% endif %}
 
-    <button type="submit" class="btn btn-success btn-lg">Подтвердить отгрузку</button>
-    <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">Отмена</a>
+<div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-success btn-lg">📤 Подтвердить отгрузку</button>
+        <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">❌ Отмена</a>
+    </div>
 </form>
 
 {% endblock %}

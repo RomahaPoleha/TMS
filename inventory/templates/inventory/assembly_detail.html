@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container-fluid py-4">
     <div class="mb-4">
-        <a href="{% url 'assembly_list' %}" class="btn btn-outline-secondary btn-sm mb-3">← Назад к реестру</a>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm mb-3">← Назад</a>
         <h1 class="h3 mb-1">
             {% if assembly.serial_number %}
                 Сборка {{ assembly.serial_number }}: {{ assembly.kit.name }}
@@ -38,34 +38,30 @@
                             {% endif %}
                         {% endwith %}
                     </p>
+    <div class="d-flex gap-2 flex-wrap mt-3">
                     {% if assembly.status == "READY" %}
-                <div class="mt-3">
-                    <form method="POST" action="{% url 'disassemble_assembly' assembly.id %}">
+                    <form method="POST" action="{% url 'disassemble_assembly' assembly.id %}" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-danger btn-sm"
                                 onclick="return confirm('Разобрать сборку? Устройства вернутся на склад')">
-                            🔧 Разобрать сборку
+                            🔧 Разобрать
                         </button>
                     </form>
-                </div>
-                {% endif %}
-                {% if assembly.status == "READY" or assembly.status == "RESERVED" %}
-                <div class="mt-3">
+                    {% endif %}
+                    {% if assembly.status == "READY" or assembly.status == "RESERVED" %}
                     <a href="{% url 'assembly_to_service' assembly.id %}" class="btn btn-outline-warning btn-sm">
-                        🔧 Отправить в сервис
+                        🔧 В сервис
                     </a>
-                </div>
-                {% endif %}
-                {% if assembly.status == "IN_SERVICE" %}
-                <div class="mt-3">
-                    <form method="POST" action="{% url 'finish_assembly_service' assembly.id %}">
+                    {% endif %}
+                    {% if assembly.status == "IN_SERVICE" %}
+                    <form method="POST" action="{% url 'finish_assembly_service' assembly.id %}" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-success btn-sm">
                             ✅ Завершить ремонт
                         </button>
                     </form>
+                    {% endif %}
                 </div>
-                {% endif %}
                 </div>
             </div>
         </div>

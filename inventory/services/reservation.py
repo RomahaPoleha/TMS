@@ -114,7 +114,8 @@ class ReservationService:
                     if unit.status != "READY":
                         raise ValidationError(f"Unit #{unit.id} не READY")
                     unit.status = "SOLD"
-                    unit.save(update_fields=["status", "updated_at"])
+                    unit.reservation = reservation
+                    unit.save(update_fields=["status", "reservation", "updated_at"])
             else:
                 # Немаркируемые: списываем любые READY
                 units = Unit.objects.filter(product=product, status="READY")[:qty]
@@ -122,7 +123,8 @@ class ReservationService:
                     raise ValidationError(f"Недостаточно '{product.name}' на складе (нужно {qty}, есть {len(units)})")
                 for unit in units:
                     unit.status = "SOLD"
-                    unit.save(update_fields=["status", "updated_at"])
+                    unit.reservation = reservation
+                    unit.save(update_fields=["status", "reservation", "updated_at"])
 
         # Обрабатываем сборки
         for line in lines.filter(type="assembly"):
@@ -131,6 +133,9 @@ class ReservationService:
                 raise ValidationError(f"Сборка #{assembly.id} не в резерве")
             assembly.status = "SOLD"
             assembly.save(update_fields=["status"])
+            # Привязываем сборку к резерву (для реестра отгрузок)
+            unit_ids = list(assembly.units.values_list("unit_id", flat=True))
+            Unit.objects.filter(id__in=unit_ids).update(reservation=reservation)
             # Удаляем ReservationLine (история в reservation.lines остаётся через related_name)
             line.delete()
 

@@ -14,7 +14,9 @@
         <label for="defect_type" class="form-label">Неисправность:</label>
         <input type="text" name="defect_type" id="defect_type" class="form-control" required>
     </div>
-  <button type="submit" class="btn btn-primary">Добавить неисправность</button>
-  <a href="{% url 'add_to_service' %}" class="btn btn-secondary">Отмена</a>
+<div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">➕ Добавить неисправность</button>
+        <a href="{% url 'add_to_service' %}" class="btn btn-secondary">❌ Отмена</a>
+    </div>
 </form>
 {% endblock %}

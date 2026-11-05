@@ -386,10 +386,24 @@ def shipment_registry(request: HttpRequest) -> HttpResponse:
     units = Unit.objects.filter(
         status="SOLD",
         reservation__isnull=False
-    ).select_related('reservation', 'reservation__client', 'product').order_by('-reservation__created_at')
+    ).select_related('reservation', 'reservation__client', 'product').prefetch_related('assemblyunit_set__assembly__kit').order_by('-reservation__created_at')
 
     if query:
-        units = units.filter(serial_number__icontains=query)
+        units = units.filter(
+            Q(serial_number__icontains=query) |
+            Q(reservation__client__name__icontains=query) |
+            Q(product__name__icontains=query)
+        )
+        # Также ищем по серийникам сборок
+        assembly_unit_ids = AssemblyUnit.objects.filter(
+            assembly__serial_number__icontains=query
+        ).values_list('unit_id', flat=True)
+        if assembly_unit_ids:
+            units = units | Unit.objects.filter(
+                id__in=assembly_unit_ids,
+                status="SOLD",
+                reservation__isnull=False
+            ).select_related('reservation', 'reservation__client', 'product').prefetch_related('assemblyunit_set__assembly__kit')
 
     return render(request, "inventory/shipment_registry.html", {"units": units, "query": query})
 
@@ -563,6 +577,7 @@ def search_unit(request: HttpRequest) -> HttpResponse:
     })
 def kit_potential(request: HttpRequest, kit_id: int) -> HttpResponse:
     """Детальный расчёт потенциала комплекта"""
+    kit = get_object_or_404(Kit, id=kit_id)
     available_units = AssemblyService.get_available_units_for_kit(kit)
     potential = AssemblyService.calculate_potential_count(kit)
 
@@ -756,14 +771,6 @@ def create_assembly(request: HttpRequest) -> HttpResponse:
     })
 
 
-def assembly_list(request: HttpRequest) -> HttpResponse:
-    """Реестр всех сборок (комплектов)"""
-    assemblies = Assembly.objects.select_related('kit').order_by('-id')
-    return render(request, "inventory/assembly_list.html", {
-        "assemblies": assemblies
-    })
-
-
 def assembly_detail(request: HttpRequest, assembly_id: int) -> HttpResponse:
     """Детальная информация о конкретной сборке (состав)"""
     assembly = get_object_or_404(
@@ -788,7 +795,7 @@ def disassemble_assembly(request: HttpRequest, assembly_id: int) -> HttpResponse
             messages.success(request, f"Сборка разобрана: {len(units)} устройств возвращено на склад")
         except ValidationError as e:
             messages.error(request, str(e))
-    return redirect('assembly_list')
+    return redirect('dashboard')
 
 
 @transaction.atomic
@@ -801,7 +808,7 @@ def finish_assembly_service(request: HttpRequest, assembly_id: int) -> HttpRespo
             messages.success(request, f"Ремонт сборки #{assembly.id} завершён")
         except ValidationError as e:
             messages.error(request, str(e))
-    return redirect('assembly_list')
+    return redirect('dashboard')
 
 
 @transaction.atomic
@@ -826,7 +833,7 @@ def assembly_to_service(request: HttpRequest, assembly_id: int) -> HttpResponse:
         except ValidationError as e:
             messages.error(request, str(e))
 
-        return redirect('assembly_list')
+        return redirect('dashboard')
 
     defect_types = DefectType.objects.all()
     return render(request, "inventory/assembly_to_service.html", {

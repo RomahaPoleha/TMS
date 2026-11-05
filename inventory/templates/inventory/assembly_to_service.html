@@ -25,15 +25,17 @@
 <form method="POST">
     {% csrf_token %}
 
-    <div class="mb-3">
+<div class="mb-3">
         <label for="defect_type" class="form-label">Вид неисправности:</label>
-        <select name="defect_type" id="defect_type" class="form-select" required>
-            <option value="">-- Выберите неисправность --</option>
-            {% for dt in defect_types %}
-                <option value="{{ dt.id }}">{{ dt.name }}</option>
-            {% endfor %}
-        </select>
-        <a href="{% url 'create_defect_type' %}" class="btn btn-sm btn-outline-secondary mt-2">+ Создать новую неисправность</a>
+        <div class="input-group">
+            <select name="defect_type" id="defect_type" class="form-select" required>
+                <option value="">-- Выберите неисправность --</option>
+                {% for dt in defect_types %}
+                    <option value="{{ dt.id }}">{{ dt.name }}</option>
+                {% endfor %}
+            </select>
+            <a href="{% url 'create_defect_type' %}" class="btn btn-outline-secondary">+ Новая</a>
+        </div>
     </div>
 
     <div class="mb-3">
@@ -46,8 +48,10 @@
         <input type="url" name="task_url" id="task_url" class="form-control" placeholder="https://...">
     </div>
 
-    <button type="submit" class="btn btn-primary">Отправить в сервис</button>
-    <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-secondary">Отмена</a>
+<div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">🔧 Отправить в сервис</button>
+        <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-secondary">❌ Отмена</a>
+    </div>
 </form>
 
 {% endblock %}

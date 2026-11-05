@@ -54,10 +54,9 @@
         </div>
     </div>
 
-    <div class="mt-3">
-        <a href="{% url 'create_assembly' %}?kit={{ kit.id }}" class="btn btn-success">
-            🔧 Собрать комплект
-        </a>
+<div class="d-flex gap-2 mt-3">
+        <a href="{% url 'create_assembly' %}?kit={{ kit.id }}" class="btn btn-success">🔧 Собрать комплект</a>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">← Назад</a>
     </div>
 </div>
 {% endblock %}

@@ -20,7 +20,7 @@
             {{ product.name }}
         </td>
         <td>{{ product.units_to_prepare}} </td>
-        <td><a href="{% url 'prepare_product' product.id %}">Перейти</a></td>
+        <td><a href="{% url 'prepare_product' product.id %}" class="btn btn-sm btn-primary">🔧 Подготовить</a></td>
     </tr>
     {% endfor %}
 </tbody>

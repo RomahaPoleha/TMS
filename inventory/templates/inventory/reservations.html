@@ -17,13 +17,13 @@
                 <br>
                 <small class="text-muted">{{ reservation.created_at|date:"d.m.Y H:i" }}</small>
             </div>
-            <div>
-                <a href="{% url 'ship_reservation' reservation.id %}" class="btn btn-success btn-sm me-2">
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="{% url 'ship_reservation' reservation.id %}" class="btn btn-success">
                     📤 Отгрузить
                 </a>
                 <form method="POST" action="{% url 'cancel_reservation' reservation.id %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-danger btn-sm"
+                    <button type="submit" class="btn btn-danger"
                             onclick="return confirm('Отменить резерв #{{ reservation.id }}?')">
                         ❌ Отменить
                     </button>
@@ -37,7 +37,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Позиция</th>
-                        <th class="text-center">Кол-во / Серийник</th>
+                        <th class="text-center">Количество</th>
                         <th class="text-center">Действия</th>
                     </tr>
                 </thead>
@@ -60,13 +60,9 @@
                             {% if line.type == "product" %}
                                 <span class="badge bg-primary">{{ line.quantity }} шт.</span>
                             {% elif line.type == "assembly" %}
-                                {% if line.assembly.serial_number %}
-                                    <strong>{{ line.assembly.serial_number }}</strong>
-                                {% else %}
-                                    <span class="text-muted">#{{ line.assembly.id }}</span>
-                                {% endif %}
+                                <span class="badge bg-primary">{{ line.quantity }} шт.</span>
                             {% elif line.type == "kit" %}
-                                <span class="badge bg-primary">{{ line.quantity }} шт. (на сборку)</span>
+                                <span class="badge bg-primary">{{ line.quantity }} шт.</span>
                             {% endif %}
                         </td>
                         <td class="text-center">
