@@ -167,6 +167,13 @@ def create_reservation(request: HttpRequest) -> HttpResponse:
                     "error": f"Клиент '{new_client_name}' уже существует. Выберите его из списка."
                 })
             client = Client.objects.create(name=new_client_name)
+            from inventory.services.movement import log_movement
+            log_movement(
+                object_type="client",
+                object_id=client.id,
+                action="created",
+                comment=f"Клиент '{new_client_name}' создан",
+            )
         else:
             return render(request, "inventory/create_reservation.html", {
                 "clients": clients, "products": products,
@@ -207,10 +214,18 @@ def create_reservation(request: HttpRequest) -> HttpResponse:
 
         # 3. Создаём резерв через сервис
         try:
-            ReservationService.create_reservation(
+            reservation = ReservationService.create_reservation(
                 client=client,
                 product_lines=product_lines,
                 assembly_lines=assembly_lines,
+            )
+            from inventory.services.movement import log_movement
+            log_movement(
+                object_type="reservation",
+                object_id=reservation.id,
+                action="created",
+                client=client,
+                comment=f"Резерв для {client.name}: {len(product_lines)} товаров, {len(assembly_lines)} сборок",
             )
         except ValidationError as e:
             messages.error(request, str(e))
@@ -325,6 +340,13 @@ def add_product(request: HttpRequest) -> HttpResponse:
             name=name,
             equipment_type=equipment_type,
             requires_serial=requires_serial
+        )
+        from inventory.services.movement import log_movement
+        log_movement(
+            object_type="product",
+            object_id=Product.objects.get(name=name).id,
+            action="created",
+            comment=f"Товар '{name}' создан",
         )
         messages.success(request, f"Товар '{name}' успешно создан")
         return redirect('add_units')
@@ -542,7 +564,6 @@ def movement_log(request: HttpRequest) -> HttpResponse:
             Q(comment__icontains=query)
         )
 
-    # Пагинация (простая, 50 записей)
     from django.core.paginator import Paginator
     paginator = Paginator(logs, 50)
     page = request.GET.get('page', 1)
@@ -760,7 +781,14 @@ def create_defect_type(request: HttpRequest) -> HttpResponse:
             return redirect('create_defect_type')
 
         # Создаём новую неисправность в справочнике
-        DefectType.objects.create(name=defect_name)
+        dt = DefectType.objects.create(name=defect_name)
+        from inventory.services.movement import log_movement
+        log_movement(
+            object_type="defect_type",
+            object_id=dt.id,
+            action="created",
+            comment=f"Тип неисправности '{defect_name}' создан",
+        )
         messages.success(request, f"Тип неисправности '{defect_name}' успешно добавлен")
         return redirect('add_to_service')
 
@@ -820,6 +848,15 @@ def edit_unit(request: HttpRequest, unit_id: int) -> HttpResponse:
         unit.serial_number = serial_number
         unit.product = product
         unit.save()
+        from inventory.services.movement import log_movement
+        log_movement(
+            object_type="unit",
+            object_id=unit.id,
+            serial_number=unit.serial_number or "",
+            action="edited",
+            new_status=unit.status,
+            comment=f"Редактирование устройства #{unit.id}",
+        )
 
         messages.success(request, "Данные успешно изменены")
         return redirect('unit_list')
@@ -841,6 +878,15 @@ def delete_unit(request: HttpRequest, unit_id: int) -> HttpResponse:
         return redirect('unit_list')
     # Обработка POST-запроса (удаление)
     if request.method == "POST":
+        from inventory.services.movement import log_movement
+        log_movement(
+            object_type="unit",
+            object_id=unit.id,
+            serial_number=unit.serial_number or "",
+            action="deleted",
+            old_status=unit.status,
+            comment=f"Удаление устройства #{unit.id}",
+        )
         unit.delete()
         messages.success(request, "Устройство успешно удалено")
         return redirect('unit_list')

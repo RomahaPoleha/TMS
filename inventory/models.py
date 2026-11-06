@@ -414,10 +414,20 @@ class AssemblyUnit(models.Model):
 class MovementLog(models.Model):
     OBJECT_TYPE_UNIT = "unit"
     OBJECT_TYPE_ASSEMBLY = "assembly"
+    OBJECT_TYPE_RESERVATION = "reservation"
+    OBJECT_TYPE_PRODUCT = "product"
+    OBJECT_TYPE_CLIENT = "client"
+    OBJECT_TYPE_KIT = "kit"
+    OBJECT_TYPE_DEFECT_TYPE = "defect_type"
 
     OBJECT_TYPE_CHOICES = [
         (OBJECT_TYPE_UNIT, "Устройство"),
         (OBJECT_TYPE_ASSEMBLY, "Сборка"),
+        (OBJECT_TYPE_RESERVATION, "Резерв"),
+        (OBJECT_TYPE_PRODUCT, "Товар"),
+        (OBJECT_TYPE_CLIENT, "Клиент"),
+        (OBJECT_TYPE_KIT, "Комплект"),
+        (OBJECT_TYPE_DEFECT_TYPE, "Неисправность"),
     ]
 
     ACTION_CREATED = "created"

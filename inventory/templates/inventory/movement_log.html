@@ -41,8 +41,20 @@
                         <td>
                             {% if log.object_type == "unit" %}
                                 <span class="badge bg-secondary">Устройство</span> #{{ log.object_id }}
-                            {% else %}
+                            {% elif log.object_type == "assembly" %}
                                 <span class="badge bg-info">Сборка</span> #{{ log.object_id }}
+                            {% elif log.object_type == "reservation" %}
+                                <span class="badge bg-primary">Резерв</span> #{{ log.object_id }}
+                            {% elif log.object_type == "product" %}
+                                <span class="badge bg-success">Товар</span> #{{ log.object_id }}
+                            {% elif log.object_type == "client" %}
+                                <span class="badge bg-warning text-dark">Клиент</span> #{{ log.object_id }}
+                            {% elif log.object_type == "kit" %}
+                                <span class="badge bg-dark">Комплект</span> #{{ log.object_id }}
+                            {% elif log.object_type == "defect_type" %}
+                                <span class="badge bg-danger">Неисправность</span> #{{ log.object_id }}
+                            {% else %}
+                                {{ log.object_type }} #{{ log.object_id }}
                             {% endif %}
                         </td>
                         <td>{{ log.serial_number|default:"—" }}</td>
