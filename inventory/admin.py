@@ -1,5 +1,5 @@
 from django.contrib import admin
-from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment, ShipmentItem, ReservationLine, Kit, KitComponent, Assembly
+from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment, ShipmentItem, ReservationLine, Kit, KitComponent, Assembly, Return
 
 
 class UnitInline(admin.TabularInline):
@@ -98,6 +98,12 @@ class ReservationLineAdmin(admin.ModelAdmin):
     list_display = ["reservation", "type", "product", "assembly", "kit", "quantity"]
     list_filter = ["type", "reservation__is_fulfilled"]
 
+
+@admin.register(Return)
+class ReturnAdmin(admin.ModelAdmin):
+    list_display = ["returned_at", "client", "unit", "assembly", "disposition", "reason"]
+    list_filter = ["disposition", "returned_at"]
+    search_fields = ["client__name", "unit__serial_number", "assembly__serial_number", "reason"]
 
 # Регистрация в админке моделей
 admin.site.register(Product, ProductAdmin)

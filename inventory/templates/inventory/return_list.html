@@ -1,0 +1,65 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">↩️ Возвраты (RMA)</h1>
+            <p class="text-muted mb-0">История возвращённых товаров и комплектов</p>
+        </div>
+        <a href="{% url 'create_return' %}" class="btn btn-primary">➕ Оформить возврат</a>
+    </div>
+
+    {% if returns %}
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Дата</th>
+                        <th>Клиент</th>
+                        <th>Товар / Сборка</th>
+                        <th>Решение</th>
+                        <th>Причина</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ret in returns %}
+                    <tr>
+                        <td>{{ ret.returned_at|date:"d.m.Y H:i" }}</td>
+                        <td>{{ ret.client.name }}</td>
+                        <td>
+                            {% if ret.unit %}
+                                {{ ret.unit.product.name }}
+                                {% if ret.unit.serial_number %}
+                                    <br><small class="text-muted">{{ ret.unit.serial_number }}</small>
+                                {% endif %}
+                            {% elif ret.assembly %}
+                                <strong>[Комплект]</strong> {{ ret.assembly.kit.name }}
+                                {% if ret.assembly.serial_number %}
+                                    <br><small class="text-muted">{{ ret.assembly.serial_number }}</small>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ret.disposition == "back_to_stock" %}
+                                <span class="badge bg-success">На склад</span>
+                            {% else %}
+                                <span class="badge bg-danger">В сервис</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ret.reason }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h5 class="alert-heading">📭 Возвратов пока нет</h5>
+        <p class="mb-0">Оформленные возвраты появятся здесь</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

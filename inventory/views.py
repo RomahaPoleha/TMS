@@ -4,8 +4,8 @@ from django.db.models import Count, Sum, Q, Subquery, OuterRef
 from django.utils import timezone
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
-from inventory.models import Product, Reservation, ReservationLine, Unit, EquipmentType, Client, DefectType, Kit, Assembly, AssemblyUnit
-from inventory.services import ReservationService, AssemblyService, ServiceService, ShipmentService
+from inventory.models import Product, Reservation, ReservationLine, Unit, EquipmentType, Client, DefectType, Kit, Assembly, AssemblyUnit, Return
+from inventory.services import ReservationService, AssemblyService, ServiceService, ShipmentService, ReturnService
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 
@@ -382,6 +382,139 @@ def finish_service(request: HttpRequest, unit_id: int) -> HttpResponse:
 
 def shipment_registry(request: HttpRequest) -> HttpResponse:
     """История отгруженных серийников с возможностью поиска."""
+    query = request.GET.get('q', '')
+    units = Unit.objects.filter(
+        status="SOLD",
+        reservation__isnull=False
+    ).select_related('reservation', 'reservation__client', 'product').prefetch_related('assemblyunit_set__assembly__kit').order_by('-reservation__created_at')
+
+    if query:
+        units = units.filter(
+            Q(serial_number__icontains=query) |
+            Q(reservation__client__name__icontains=query) |
+            Q(product__name__icontains=query)
+        )
+        assembly_unit_ids = AssemblyUnit.objects.filter(
+            assembly__serial_number__icontains=query
+        ).values_list('unit_id', flat=True)
+        if assembly_unit_ids:
+            units = units | Unit.objects.filter(
+                id__in=assembly_unit_ids,
+                status="SOLD",
+                reservation__isnull=False
+            ).select_related('reservation', 'reservation__client', 'product').prefetch_related('assemblyunit_set__assembly__kit')
+
+    return render(request, "inventory/shipment_registry.html", {"units": units, "query": query})
+
+
+def return_list(request: HttpRequest) -> HttpResponse:
+    """Список возвратов"""
+    returns = Return.objects.select_related(
+        "client", "unit__product", "assembly__kit", "defect_type"
+    ).order_by("-returned_at")
+    return render(request, "inventory/return_list.html", {"returns": returns})
+
+
+@transaction.atomic
+def create_return(request: HttpRequest) -> HttpResponse:
+    """Оформление возврата (поиск по серийному номеру)"""
+    if request.method == "POST":
+        serial_number = request.POST.get("serial_number", "").strip()
+        disposition = request.POST.get("disposition")
+        reason = request.POST.get("reason", "").strip()
+        comment = request.POST.get("comment", "").strip()
+        defect_type_id = request.POST.get("defect_type")
+
+        if not serial_number:
+            messages.error(request, "Введите серийный номер")
+            return redirect("create_return")
+
+        if not reason:
+            messages.error(request, "Укажите причину возврата")
+            return redirect("create_return")
+
+        if not disposition:
+            messages.error(request, "Выберите решение")
+            return redirect("create_return")
+
+        defect_type = None
+        if defect_type_id:
+            try:
+                defect_type = DefectType.objects.get(id=defect_type_id)
+            except DefectType.DoesNotExist:
+                messages.error(request, "Неисправность не найдена")
+                return redirect("create_return")
+
+        # Определяем клиента: ищем по проданному устройству/сборке
+        client = None
+
+        # Сначала пробуем найти устройство
+        try:
+            unit = ReturnService.find_sold_unit(serial_number)
+            # Клиент из резерва
+            if unit.reservation and unit.reservation.client:
+                client = unit.reservation.client
+            elif not client:
+                # Ищем клиента по имени из POST
+                client_name = request.POST.get("client_name", "").strip()
+                if client_name:
+                    client, _ = Client.objects.get_or_create(name=client_name)
+                else:
+                    messages.error(request, "Укажите клиента")
+                    return redirect("create_return")
+
+            ret = ReturnService.process_unit_return(
+                unit=unit,
+                client=client,
+                reason=reason,
+                disposition=disposition,
+                defect_type=defect_type,
+                comment=comment,
+            )
+            messages.success(request, f"Возврат оформлен: {unit.serial_number}")
+            return redirect("return_list")
+
+        except ValidationError:
+            pass
+
+        # Пробуем найти сборку
+        try:
+            assembly = ReturnService.find_sold_assembly(serial_number)
+            if assembly.units.exists():
+                first_unit = assembly.units.first().unit
+                if first_unit.reservation and first_unit.reservation.client:
+                    client = first_unit.reservation.client
+
+            if not client:
+                client_name = request.POST.get("client_name", "").strip()
+                if client_name:
+                    client, _ = Client.objects.get_or_create(name=client_name)
+                else:
+                    messages.error(request, "Укажите клиента")
+                    return redirect("create_return")
+
+            ret = ReturnService.process_assembly_return(
+                assembly=assembly,
+                client=client,
+                reason=reason,
+                disposition=disposition,
+                defect_type=defect_type,
+                comment=comment,
+            )
+            messages.success(request, f"Возврат оформлен: сборка {assembly.serial_number or assembly.id}")
+            return redirect("return_list")
+
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect("create_return")
+
+    # GET
+    defect_types = DefectType.objects.all()
+    clients = Client.objects.all()
+    return render(request, "inventory/create_return.html", {
+        "defect_types": defect_types,
+        "clients": clients,
+    })
     query = request.GET.get('q', '')
     units = Unit.objects.filter(
         status="SOLD",

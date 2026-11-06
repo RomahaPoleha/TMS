@@ -1,0 +1,90 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="mb-4">
+        <a href="{% url 'return_list' %}" class="btn btn-outline-secondary btn-sm mb-3">← Назад</a>
+        <h1 class="h3 mb-1">↩️ Оформить возврат</h1>
+        <p class="text-muted mb-0">Введите серийный номер проданного устройства или сборки</p>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="serial_number" class="form-label">Серийный номер:</label>
+                    <input type="text" name="serial_number" id="serial_number" class="form-control"
+                           placeholder="Введите серийный номер устройства или сборки" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="client_name" class="form-label">Клиент (если не найден автоматически):</label>
+                    <input type="text" name="client_name" id="client_name" class="form-control"
+                           placeholder="Название организации">
+                    <small class="text-muted">Оставьте пустым, если клиент определяется по резерву</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="reason" class="form-label">Причина возврата:</label>
+                    <textarea name="reason" id="reason" class="form-control" rows="2" required></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Решение:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="disposition" id="disp_stock" value="back_to_stock" checked>
+                        <label class="form-check-label" for="disp_stock">✅ Вернуть на склад (READY)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="disposition" id="disp_service" value="to_service">
+                        <label class="form-check-label" for="disp_service">🔧 Отправить в сервис</label>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="defect-block" style="display:none;">
+                    <label for="defect_type" class="form-label">Вид неисправности:</label>
+                    <div class="input-group">
+                        <select name="defect_type" id="defect_type" class="form-select">
+                            <option value="">-- Выберите неисправность --</option>
+                            {% for dt in defect_types %}
+                                <option value="{{ dt.id }}">{{ dt.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <a href="{% url 'create_defect_type' %}" class="btn btn-outline-secondary">+ Новая</a>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="comment" class="form-label">Комментарий:</label>
+                    <textarea name="comment" id="comment" class="form-control" rows="2"></textarea>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary">↩️ Оформить возврат</button>
+                    <a href="{% url 'return_list' %}" class="btn btn-secondary">❌ Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('input[name="disposition"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        const defectBlock = document.getElementById('defect-block');
+        const defectSelect = document.getElementById('defect_type');
+        if (this.value === 'to_service') {
+            defectBlock.style.display = 'block';
+            defectSelect.required = true;
+        } else {
+            defectBlock.style.display = 'none';
+            defectSelect.required = false;
+            defectSelect.value = '';
+        }
+    });
+});
+</script>
+
+{% endblock %}

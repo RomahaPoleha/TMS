@@ -208,7 +208,42 @@ class Unit(models.Model):
 
 
 
-#Отгрузки
+# Возвраты (RMA)
+class Return(models.Model):
+    DISPOSITION_BACK_TO_STOCK = "back_to_stock"
+    DISPOSITION_TO_SERVICE = "to_service"
+
+    DISPOSITION_CHOICES = [
+        (DISPOSITION_BACK_TO_STOCK, "Вернуть на склад"),
+        (DISPOSITION_TO_SERVICE, "Отправить в сервис"),
+    ]
+
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name="Клиент")
+    unit = models.ForeignKey(Unit, on_delete=models.PROTECT, null=True, blank=True, related_name="returns", verbose_name="Устройство")
+    assembly = models.ForeignKey("Assembly", on_delete=models.PROTECT, null=True, blank=True, related_name="returns", verbose_name="Сборка")
+    reason = models.TextField(verbose_name="Причина возврата")
+    disposition = models.CharField(max_length=20, choices=DISPOSITION_CHOICES, verbose_name="Решение")
+    defect_type = models.ForeignKey(DefectType, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Неисправность")
+    comment = models.TextField(blank=True, verbose_name="Комментарий")
+    returned_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата возврата")
+
+    class Meta:
+        verbose_name = "Возврат"
+        verbose_name_plural = "Возвраты"
+        ordering = ["-returned_at"]
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(unit__isnull=False, assembly__isnull=True) |
+                    models.Q(unit__isnull=True, assembly__isnull=False)
+                ),
+                name="return_one_target"
+            )
+        ]
+
+    def __str__(self):
+        target = self.unit.serial_number if self.unit else f"Сборка #{self.assembly_id}"
+        return f"Возврат {target} от {self.client} ({self.get_disposition_display()})"
 class Shipment(models.Model):
     client = models.ForeignKey(Client, on_delete=models.PROTECT, verbose_name="Наименование клиента")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата отгрузки резерва")

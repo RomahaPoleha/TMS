@@ -4,10 +4,10 @@ from django.core.exceptions import ValidationError
 from inventory.models import (
     Client, EquipmentType, Product, Unit, DefectType,
     Kit, KitComponent, Assembly, AssemblyUnit,
-    Reservation, ReservationLine,
+    Reservation, ReservationLine, Return,
 )
 from inventory.services import (
-    AssemblyService, ReservationService, ServiceService,
+    AssemblyService, ReservationService, ServiceService, ReturnService,
 )
 
 
@@ -338,3 +338,76 @@ class ServiceServiceTests(TestCase):
         self.assertEqual(finished.status, "READY")
         self.unit.refresh_from_db()
         self.assertEqual(self.unit.status, "READY")
+
+
+class ReturnServiceTests(TestCase):
+    """Тесты ReturnService"""
+
+    def setUp(self):
+        self.client_obj = Client.objects.create(name="Клиент")
+        self.equip_type = EquipmentType.objects.create(name="Тип")
+        self.product = Product.objects.create(
+            name="Товар", equipment_type=self.equip_type, requires_serial=True
+        )
+        self.defect_type = DefectType.objects.create(name="Дефект")
+        self.unit = Unit.objects.create(
+            product=self.product, status="SOLD", serial_number="SN-001"
+        )
+
+    def test_process_unit_return_back_to_stock(self):
+        """Возврат устройства на склад"""
+        ret = ReturnService.process_unit_return(
+            unit=self.unit,
+            client=self.client_obj,
+            reason="Не подошёл",
+            disposition=Return.DISPOSITION_BACK_TO_STOCK,
+        )
+        self.assertEqual(ret.disposition, Return.DISPOSITION_BACK_TO_STOCK)
+        self.unit.refresh_from_db()
+        self.assertEqual(self.unit.status, "READY")
+
+    def test_process_unit_return_to_service(self):
+        """Возврат устройства в сервис"""
+        ret = ReturnService.process_unit_return(
+            unit=self.unit,
+            client=self.client_obj,
+            reason="Сломался",
+            disposition=Return.DISPOSITION_TO_SERVICE,
+            defect_type=self.defect_type,
+            comment="Трещина",
+        )
+        self.assertEqual(ret.disposition, Return.DISPOSITION_TO_SERVICE)
+        self.unit.refresh_from_db()
+        self.assertEqual(self.unit.status, "IN_SERVICE")
+
+    def test_process_unit_return_not_sold_raises(self):
+        """Нельзя вернуть не-проданное устройство"""
+        self.unit.status = "READY"
+        self.unit.save()
+        with self.assertRaises(ValidationError):
+            ReturnService.process_unit_return(
+                unit=self.unit,
+                client=self.client_obj,
+                reason="Тест",
+                disposition=Return.DISPOSITION_BACK_TO_STOCK,
+            )
+
+    def test_process_unit_return_to_service_no_defect_raises(self):
+        """Отправка в сервис без неисправности → ошибка"""
+        with self.assertRaises(ValidationError):
+            ReturnService.process_unit_return(
+                unit=self.unit,
+                client=self.client_obj,
+                reason="Тест",
+                disposition=Return.DISPOSITION_TO_SERVICE,
+            )
+
+    def test_find_sold_unit(self):
+        """Поиск проданного устройства по серийнику"""
+        unit = ReturnService.find_sold_unit("SN-001")
+        self.assertEqual(unit.id, self.unit.id)
+
+    def test_find_sold_unit_not_found(self):
+        """Не найдено → ValidationError"""
+        with self.assertRaises(ValidationError):
+            ReturnService.find_sold_unit("NONEXISTENT")
