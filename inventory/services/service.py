@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from inventory.models import Unit, Assembly, DefectType, AssemblyUnit
+from inventory.services.movement import log_movement
 
 
 class ServiceService:
@@ -56,6 +57,15 @@ class ServiceService:
         unit.task_url = task_url
         unit.service_received_at = timezone.now()
         unit.save()
+        log_movement(
+            object_type="unit",
+            object_id=unit.id,
+            serial_number=unit.serial_number or "",
+            action="to_service",
+            old_status="READY",
+            new_status="IN_SERVICE",
+            comment=comment,
+        )
         return unit
 
     @staticmethod
@@ -79,6 +89,15 @@ class ServiceService:
         unit.status = "READY"
         unit.service_resolved_at = timezone.now()
         unit.save()
+        log_movement(
+            object_type="unit",
+            object_id=unit.id,
+            serial_number=unit.serial_number or "",
+            action="from_service",
+            old_status="IN_SERVICE",
+            new_status="READY",
+            comment="Ремонт завершён",
+        )
         return unit
 
     @staticmethod
@@ -120,6 +139,26 @@ class ServiceService:
             task_url=task_url,
             service_received_at=timezone.now(),
         )
+        log_movement(
+            object_type="assembly",
+            object_id=assembly.id,
+            serial_number=assembly.serial_number or "",
+            action="to_service",
+            old_status="READY",
+            new_status="IN_SERVICE",
+            comment=comment,
+        )
+        for uid in unit_ids:
+            u = Unit.objects.get(id=uid)
+            log_movement(
+                object_type="unit",
+                object_id=uid,
+                serial_number=u.serial_number or "",
+                action="to_service",
+                old_status="ASSEMBLED",
+                new_status="IN_SERVICE",
+                comment=comment,
+            )
         return assembly
 
     @staticmethod
@@ -145,4 +184,24 @@ class ServiceService:
             status="READY",
             service_resolved_at=timezone.now(),
         )
+        log_movement(
+            object_type="assembly",
+            object_id=assembly.id,
+            serial_number=assembly.serial_number or "",
+            action="from_service",
+            old_status="IN_SERVICE",
+            new_status="READY",
+            comment="Ремонт завершён",
+        )
+        for uid in unit_ids:
+            u = Unit.objects.get(id=uid)
+            log_movement(
+                object_type="unit",
+                object_id=uid,
+                serial_number=u.serial_number or "",
+                action="from_service",
+                old_status="IN_SERVICE",
+                new_status="READY",
+                comment="Ремонт завершён",
+            )
         return assembly

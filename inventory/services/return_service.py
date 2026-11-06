@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from inventory.models import Return, Unit, Assembly, AssemblyUnit, DefectType
+from inventory.services.movement import log_movement
 
 
 class ReturnService:
@@ -56,6 +57,18 @@ class ReturnService:
             unit.service_received_at = timezone.now()
 
         unit.save()
+
+        # Логирование
+        log_movement(
+            object_type="unit",
+            object_id=unit.id,
+            serial_number=unit.serial_number or "",
+            action="returned",
+            old_status="SOLD",
+            new_status=unit.status,
+            client=client,
+            comment=reason,
+        )
 
         # Создаём запись возврата
         ret = Return.objects.create(
@@ -123,6 +136,30 @@ class ReturnService:
             )
 
         assembly.save(update_fields=["status", "updated_at"])
+
+        # Логирование
+        log_movement(
+            object_type="assembly",
+            object_id=assembly.id,
+            serial_number=assembly.serial_number or "",
+            action="returned",
+            old_status="SOLD",
+            new_status=assembly.status,
+            client=client,
+            comment=reason,
+        )
+        for uid in unit_ids:
+            u = Unit.objects.get(id=uid)
+            log_movement(
+                object_type="unit",
+                object_id=uid,
+                serial_number=u.serial_number or "",
+                action="returned",
+                old_status="SOLD",
+                new_status="READY" if disposition == Return.DISPOSITION_BACK_TO_STOCK else "IN_SERVICE",
+                client=client,
+                comment=reason,
+            )
 
         # Создаём запись возврата
         ret = Return.objects.create(

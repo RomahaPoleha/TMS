@@ -1,5 +1,5 @@
 from django.contrib import admin
-from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment, ShipmentItem, ReservationLine, Kit, KitComponent, Assembly, Return
+from inventory.models import EquipmentType, Product, Client, DefectType, Unit, Batch, Reservation, Shipment, ShipmentItem, ReservationLine, Kit, KitComponent, Assembly, Return, MovementLog
 
 
 class UnitInline(admin.TabularInline):
@@ -104,6 +104,13 @@ class ReturnAdmin(admin.ModelAdmin):
     list_display = ["returned_at", "client", "unit", "assembly", "disposition", "reason"]
     list_filter = ["disposition", "returned_at"]
     search_fields = ["client__name", "unit__serial_number", "assembly__serial_number", "reason"]
+
+@admin.register(MovementLog)
+class MovementLogAdmin(admin.ModelAdmin):
+    list_display = ["created_at", "object_type", "object_id", "serial_number", "action", "old_status", "new_status", "client"]
+    list_filter = ["object_type", "action", "created_at"]
+    search_fields = ["serial_number", "comment"]
+    readonly_fields = ["created_at"]
 
 # Регистрация в админке моделей
 admin.site.register(Product, ProductAdmin)

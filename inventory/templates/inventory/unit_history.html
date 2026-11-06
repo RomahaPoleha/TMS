@@ -1,0 +1,57 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="mb-4">
+        <a href="{% url 'unit_list' %}" class="btn btn-outline-secondary btn-sm mb-3">← Назад</a>
+        <h1 class="h3 mb-1">📋 История устройства</h1>
+        <p class="text-muted mb-0">
+            {{ unit.product.name }}
+            {% if unit.serial_number %}— {{ unit.serial_number }}{% else %}(без серийника){% endif %}
+            | Статус: {{ unit.status }}
+        </p>
+    </div>
+
+    {% if logs %}
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Дата/Время</th>
+                        <th>Действие</th>
+                        <th>Статус</th>
+                        <th>Клиент</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td><small>{{ log.created_at|date:"d.m.Y H:i:s" }}</small></td>
+                        <td>{{ log.get_action_display }}</td>
+                        <td>
+                            {% if log.old_status and log.new_status %}
+                                {{ log.old_status }} → {{ log.new_status }}
+                            {% elif log.new_status %}
+                                {{ log.new_status }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>{{ log.client.name|default:"—" }}</td>
+                        <td><small>{{ log.comment|default:"" }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h5 class="alert-heading">📭 История пуста</h5>
+        <p class="mb-0">Записи появятся после операций с устройством</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

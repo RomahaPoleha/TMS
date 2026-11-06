@@ -6,6 +6,7 @@ from django.utils import timezone
 from inventory.models import (
     Reservation, ReservationLine, Client, Product, Assembly, Kit, Unit
 )
+from inventory.services.movement import log_movement
 
 
 class ReservationService:
@@ -64,6 +65,17 @@ class ReservationService:
                     assembly=assembly,
                     quantity=1,
                 )
+                log_movement(
+                    object_type="assembly",
+                    object_id=assembly.id,
+                    serial_number=assembly.serial_number or "",
+                    action="reserved",
+                    old_status="READY",
+                    new_status="RESERVED",
+                    client=client,
+                    reservation=reservation,
+                    comment=f"Резерв #{reservation.id}",
+                )
 
         # 3. Комплекты на сборку — создаём ReservationLine type=kit
         # (логика сборки под заказ будет отдельно)
@@ -116,6 +128,17 @@ class ReservationService:
                     unit.status = "SOLD"
                     unit.reservation = reservation
                     unit.save(update_fields=["status", "reservation", "updated_at"])
+                    log_movement(
+                        object_type="unit",
+                        object_id=unit.id,
+                        serial_number=unit.serial_number or "",
+                        action="shipped",
+                        old_status="READY",
+                        new_status="SOLD",
+                        client=reservation.client,
+                        reservation=reservation,
+                        comment=f"Отгрузка резерва #{reservation.id}",
+                    )
             else:
                 # Немаркируемые: списываем любые READY
                 units = Unit.objects.filter(product=product, status="READY")[:qty]
@@ -125,6 +148,17 @@ class ReservationService:
                     unit.status = "SOLD"
                     unit.reservation = reservation
                     unit.save(update_fields=["status", "reservation", "updated_at"])
+                    log_movement(
+                        object_type="unit",
+                        object_id=unit.id,
+                        serial_number=unit.serial_number or "",
+                        action="shipped",
+                        old_status="READY",
+                        new_status="SOLD",
+                        client=reservation.client,
+                        reservation=reservation,
+                        comment=f"Отгрузка резерва #{reservation.id}",
+                    )
 
         # Обрабатываем сборки
         for line in lines.filter(type="assembly"):
@@ -136,6 +170,31 @@ class ReservationService:
             # Привязываем сборку к резерву (для реестра отгрузок)
             unit_ids = list(assembly.units.values_list("unit_id", flat=True))
             Unit.objects.filter(id__in=unit_ids).update(reservation=reservation)
+            # Логирование
+            log_movement(
+                object_type="assembly",
+                object_id=assembly.id,
+                serial_number=assembly.serial_number or "",
+                action="shipped",
+                old_status="RESERVED",
+                new_status="SOLD",
+                client=reservation.client,
+                reservation=reservation,
+                comment=f"Отгрузка резерва #{reservation.id}",
+            )
+            for uid in unit_ids:
+                u = Unit.objects.get(id=uid)
+                log_movement(
+                    object_type="unit",
+                    object_id=uid,
+                    serial_number=u.serial_number or "",
+                    action="shipped",
+                    old_status="ASSEMBLED",
+                    new_status="SOLD",
+                    client=reservation.client,
+                    reservation=reservation,
+                    comment=f"Отгрузка сборки {assembly.serial_number or assembly.id}",
+                )
             # Удаляем ReservationLine (история в reservation.lines остаётся через related_name)
             line.delete()
 
@@ -161,6 +220,17 @@ class ReservationService:
             if assembly.status == "RESERVED":
                 assembly.status = "READY"
                 assembly.save(update_fields=["status"])
+                log_movement(
+                    object_type="assembly",
+                    object_id=assembly.id,
+                    serial_number=assembly.serial_number or "",
+                    action="canceled",
+                    old_status="RESERVED",
+                    new_status="READY",
+                    client=reservation.client,
+                    reservation=reservation,
+                    comment=f"Отмена резерва #{reservation.id}",
+                )
             line.delete()
 
         reservation.is_canceled = True
@@ -182,6 +252,17 @@ class ReservationService:
             assembly=assembly,
             quantity=1,
         )
+        log_movement(
+            object_type="assembly",
+            object_id=assembly.id,
+            serial_number=assembly.serial_number or "",
+            action="reserved",
+            old_status="READY",
+            new_status="RESERVED",
+            client=client,
+            reservation=reservation,
+            comment=f"Резерв #{reservation.id}",
+        )
         return reservation
 
     @staticmethod
@@ -198,3 +279,13 @@ class ReservationService:
 
         assembly.status = "READY"
         assembly.save(update_fields=["status"])
+
+        log_movement(
+            object_type="assembly",
+            object_id=assembly.id,
+            serial_number=assembly.serial_number or "",
+            action="canceled",
+            old_status="RESERVED",
+            new_status="READY",
+            comment="Отмена резерва сборки",
+        )

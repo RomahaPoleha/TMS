@@ -29,6 +29,9 @@ path('assemblies/<int:assembly_id>/service/', views.assembly_to_service, name='a
 path('assemblies/<int:assembly_id>/disassemble/', views.disassemble_assembly, name='disassemble_assembly'),
     path('returns/', views.return_list, name='return_list'),
 path('returns/create/', views.create_return, name='create_return'),
+    path('movement-log/', views.movement_log, name='movement_log'),
+    path('unit/<int:unit_id>/history/', views.unit_history, name='unit_history'),
+    path('assembly/<int:assembly_id>/history/', views.assembly_history, name='assembly_history'),
 path('assemblies/<int:assembly_id>/cancel/', views.cancel_assembly_reservation, name='cancel_assembly_reservation'),
 
 

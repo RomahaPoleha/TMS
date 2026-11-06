@@ -49,8 +49,8 @@
                     </form>
                     {% endif %}
                     {% if assembly.status == "READY" or assembly.status == "RESERVED" %}
-                    <a href="{% url 'assembly_to_service' assembly.id %}" class="btn btn-outline-warning btn-sm">
-                        🔧 В сервис
+                    <a href="{% url 'assembly_history' assembly.id %}" class="btn btn-outline-info btn-sm">
+                        📋 История
                     </a>
                     {% endif %}
                     {% if assembly.status == "IN_SERVICE" %}

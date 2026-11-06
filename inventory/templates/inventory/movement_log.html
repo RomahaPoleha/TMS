@@ -1,0 +1,87 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">📋 История движения</h1>
+            <p class="text-muted mb-0">Аудит-лог всех изменений</p>
+        </div>
+    </div>
+
+    <form method="GET" class="mb-3">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Поиск по серийному номеру или комментарию..." value="{{ query }}">
+            <button type="submit" class="btn btn-outline-primary">Найти</button>
+            {% if query %}
+                <a href="{{ request.path }}" class="btn btn-outline-secondary">Сбросить</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if page_obj %}
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Дата/Время</th>
+                        <th>Объект</th>
+                        <th>Серийный номер</th>
+                        <th>Действие</th>
+                        <th>Статус</th>
+                        <th>Клиент</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr>
+                        <td><small>{{ log.created_at|date:"d.m.Y H:i:s" }}</small></td>
+                        <td>
+                            {% if log.object_type == "unit" %}
+                                <span class="badge bg-secondary">Устройство</span> #{{ log.object_id }}
+                            {% else %}
+                                <span class="badge bg-info">Сборка</span> #{{ log.object_id }}
+                            {% endif %}
+                        </td>
+                        <td>{{ log.serial_number|default:"—" }}</td>
+                        <td>{{ log.get_action_display }}</td>
+                        <td>
+                            {% if log.old_status and log.new_status %}
+                                {{ log.old_status }} → {{ log.new_status }}
+                            {% elif log.new_status %}
+                                {{ log.new_status }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>{{ log.client.name|default:"—" }}</td>
+                        <td><small>{{ log.comment|default:"" }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Пагинация -->
+    <nav class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">←</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">→</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% else %}
+    <div class="alert alert-info">
+        <h5 class="alert-heading">📭 Записей пока нет</h5>
+        <p class="mb-0">История движения появится после первых операций</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

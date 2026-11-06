@@ -3,6 +3,7 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 
 from inventory.models import Kit, Unit, Assembly, AssemblyUnit, KitComponent
+from inventory.services.movement import log_movement
 
 
 class AssemblyService:
@@ -61,6 +62,27 @@ class AssemblyService:
                 unit.save(update_fields=["status", "updated_at"])
                 AssemblyUnit.objects.create(assembly=assembly, unit=unit)
 
+        # Логирование
+        for units in units_by_component.values():
+            for unit in units:
+                log_movement(
+                    object_type="unit",
+                    object_id=unit.id,
+                    serial_number=unit.serial_number or "",
+                    action="assembled",
+                    old_status="READY",
+                    new_status="ASSEMBLED",
+                    comment=f"Сборка в комплект {assembly.serial_number or assembly.id}",
+                )
+        log_movement(
+            object_type="assembly",
+            object_id=assembly.id,
+            serial_number=assembly.serial_number or "",
+            action="created",
+            new_status="READY",
+            comment=f"Сборка комплекта {kit.name}",
+        )
+
         return assembly
 
     @staticmethod
@@ -89,6 +111,27 @@ class AssemblyService:
 
         # Возвращаем Units в IN_STOCK
         Unit.objects.filter(id__in=unit_ids).update(status="IN_STOCK")
+
+        # Логирование
+        for uid in unit_ids:
+            u = Unit.objects.get(id=uid)
+            log_movement(
+                object_type="unit",
+                object_id=uid,
+                serial_number=u.serial_number or "",
+                action="disassembled",
+                old_status="ASSEMBLED",
+                new_status="IN_STOCK",
+                comment=f"Разборка сборки {assembly.serial_number or assembly.id}",
+            )
+        log_movement(
+            object_type="assembly",
+            object_id=assembly.id,
+            serial_number=assembly.serial_number or "",
+            action="deleted",
+            old_status=assembly.status,
+            comment="Разборка сборки",
+        )
 
         # Удаляем саму сборку
         assembly.delete()

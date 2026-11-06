@@ -409,3 +409,65 @@ class AssemblyUnit(models.Model):
 
     def __str__(self):
         return f"{self.assembly.kit.name} -> {self.unit.product.name} ({self.unit.serial_number or 'б/н'})"
+
+# История движения (аудит-лог)
+class MovementLog(models.Model):
+    OBJECT_TYPE_UNIT = "unit"
+    OBJECT_TYPE_ASSEMBLY = "assembly"
+
+    OBJECT_TYPE_CHOICES = [
+        (OBJECT_TYPE_UNIT, "Устройство"),
+        (OBJECT_TYPE_ASSEMBLY, "Сборка"),
+    ]
+
+    ACTION_CREATED = "created"
+    ACTION_PREPARED = "prepared"
+    ACTION_ASSEMBLED = "assembled"
+    ACTION_DISASSEMBLED = "disassembled"
+    ACTION_RESERVED = "reserved"
+    ACTION_SHIPPED = "shipped"
+    ACTION_RETURNED = "returned"
+    ACTION_TO_SERVICE = "to_service"
+    ACTION_FROM_SERVICE = "from_service"
+    ACTION_CANCELED = "canceled"
+    ACTION_EDITED = "edited"
+    ACTION_DELETED = "deleted"
+
+    ACTION_CHOICES = [
+        (ACTION_CREATED, "Создание"),
+        (ACTION_PREPARED, "Подготовка к продаже"),
+        (ACTION_ASSEMBLED, "Сборка в комплект"),
+        (ACTION_DISASSEMBLED, "Разборка"),
+        (ACTION_RESERVED, "Резервирование"),
+        (ACTION_SHIPPED, "Отгрузка"),
+        (ACTION_RETURNED, "Возврат"),
+        (ACTION_TO_SERVICE, "Отправка в сервис"),
+        (ACTION_FROM_SERVICE, "Возврат из сервиса"),
+        (ACTION_CANCELED, "Отмена резерва"),
+        (ACTION_EDITED, "Редактирование"),
+        (ACTION_DELETED, "Удаление"),
+    ]
+
+    object_type = models.CharField(max_length=20, choices=OBJECT_TYPE_CHOICES, verbose_name="Тип объекта")
+    object_id = models.PositiveIntegerField(verbose_name="ID объекта")
+    serial_number = models.CharField(max_length=100, blank=True, verbose_name="Серийный номер")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name="Действие")
+    old_status = models.CharField(max_length=20, blank=True, verbose_name="Старый статус")
+    new_status = models.CharField(max_length=20, blank=True, verbose_name="Новый статус")
+    client = models.ForeignKey(Client, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Клиент")
+    reservation = models.ForeignKey(Reservation, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Резерв")
+    comment = models.TextField(blank=True, verbose_name="Комментарий")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время")
+
+    class Meta:
+        verbose_name = "Запись движения"
+        verbose_name_plural = "История движения"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["object_type", "object_id"]),
+            models.Index(fields=["serial_number"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self):
+        return self.get_object_type_display() + " #" + str(self.object_id) + " - " + self.get_action_display()

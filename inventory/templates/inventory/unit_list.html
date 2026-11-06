@@ -34,6 +34,7 @@
             <td>
                 <div class="btn-group btn-group-sm" role="group">
                     <a href="{% url 'edit_unit' unit.id %}" class="btn btn-outline-primary">✏️ Редактировать</a>
+                    <a href="{% url 'unit_history' unit.id %}" class="btn btn-outline-info">📋 История</a>
                     <form method="POST" action="{% url 'delete_unit' unit.id %}" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Удалить устройство?')">🗑️ Удалить</button>
