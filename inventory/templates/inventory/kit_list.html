@@ -1,0 +1,76 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-puzzle me-2 text-info"></i>Комплекты (рецепты)</h2>
+    <a href="{% url 'create_kit' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Создать комплект
+    </a>
+</div>
+
+{% if kits %}
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Наименование</th>
+                        <th>Код</th>
+                        <th>Тип оборудования</th>
+                        <th class="text-center">Компонентов</th>
+                        <th class="text-center">Статус</th>
+                        <th class="text-center">Сборок</th>
+                        <th class="text-center pe-4">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kit in kits %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ kit.name }}</td>
+                        <td><code>{{ kit.code|default:"—" }}</code></td>
+                        <td>{{ kit.equipment_type }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary px-3 py-2">{{ kit.components.count }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if kit.is_active %}
+                                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">Активен</span>
+                            {% else %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2">Неактивен</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary px-3 py-2">{{ kit.assembly_set.count }}</span>
+                        </td>
+                        <td class="text-center pe-4">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'edit_kit' kit.id %}" class="btn btn-outline-primary" title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'kit_potential' kit.id %}" class="btn btn-outline-info" title="Потенциал">
+                                    <i class="bi bi-search"></i>
+                                </a>
+                                <a href="{% url 'delete_kit' kit.id %}" class="btn btn-outline-danger" title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-light border text-center py-5">
+    <i class="bi bi-puzzle fs-1 text-muted d-block mb-3"></i>
+    <h5 class="text-muted">Комплекты не созданы</h5>
+    <p class="text-muted small mb-3">Создайте первый рецепт комплекта для сборки оборудования</p>
+    <a href="{% url 'create_kit' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Создать комплект
+    </a>
+</div>
+{% endif %}
+{% endblock %}

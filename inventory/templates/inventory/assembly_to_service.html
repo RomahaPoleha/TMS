@@ -1,57 +1,76 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-<h2>Отправить сборку в сервис</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-tools me-2 text-danger"></i>Отправить сборку в сервис</h2>
+    <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К сборке
+    </a>
+</div>
 
-
-
-<div class="card mb-4">
+<div class="card shadow-sm mb-4 border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0"><i class="bi bi-puzzle me-2 text-info"></i>{{ assembly.kit.name }}</h5>
+    </div>
     <div class="card-body">
-        <h5 class="card-title">{{ assembly.kit.name }}</h5>
-        <p class="card-text">
-            {% if assembly.serial_number %}
-                <strong>Серийный номер:</strong> {{ assembly.serial_number }}
-            {% else %}
-                <strong>ID:</strong> #{{ assembly.id }}
-            {% endif %}
-            <br>
-            <strong>Статус:</strong> {{ assembly.get_status_display }}
-            <br>
-            <strong>Состав:</strong> {{ assembly.units.count }} устройств
-        </p>
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Серийный номер:</strong> {% if assembly.serial_number %}{{ assembly.serial_number }}{% else %}<span class="text-muted">#{{ assembly.id }}</span>{% endif %}</p>
+                <p class="mb-1"><strong>Статус:</strong>
+                    {% if assembly.status == "READY" %}<span class="badge bg-success">Готов</span>
+                    {% elif assembly.status == "RESERVED" %}<span class="badge bg-warning text-dark">Зарезервирован</span>
+                    {% elif assembly.status == "IN_SERVICE" %}<span class="badge bg-danger">В сервисе</span>
+                    {% elif assembly.status == "SOLD" %}<span class="badge bg-dark">Продан</span>
+                    {% endif %}
+                </p>
+                <p class="mb-0"><strong>Устройств в составе:</strong> {{ assembly.units.count }} шт.</p>
+            </div>
+        </div>
     </div>
 </div>
 
 <form method="POST">
     {% csrf_token %}
 
-<div class="mb-3">
-        <label for="defect_type" class="form-label">Вид неисправности:</label>
-        <div class="input-group">
-            <select name="defect_type" id="defect_type" class="form-select" required>
-                <option value="">-- Выберите неисправность --</option>
-                {% for dt in defect_types %}
-                    <option value="{{ dt.id }}">{{ dt.name }}</option>
-                {% endfor %}
-            </select>
-            <a href="{% url 'create_defect_type' %}" class="btn btn-outline-secondary">+ Новая</a>
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0">Детали отправки в сервис</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="defect_type" class="form-label fw-medium">Вид неисправности <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <select name="defect_type" id="defect_type" class="form-select" required>
+                        <option value="">-- Выберите неисправность --</option>
+                        {% for dt in defect_types %}
+                            <option value="{{ dt.id }}">{{ dt.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <a href="{% url 'create_defect_type' %}" class="btn btn-outline-secondary" title="Добавить новый вид">
+                        <i class="bi bi-plus-lg"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="service_comment" class="form-label fw-medium">Комментарий / Описание проблемы <span class="text-danger">*</span></label>
+                <textarea name="service_comment" id="service_comment" class="form-control" rows="3" required placeholder="Опишите проблему..."></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="task_url" class="form-label">Ссылка на задачу (опционально)</label>
+                <input type="url" name="task_url" id="task_url" class="form-control" placeholder="https://...">
+            </div>
         </div>
     </div>
 
-    <div class="mb-3">
-        <label for="service_comment" class="form-label">Комментарий:</label>
-        <textarea name="service_comment" id="service_comment" class="form-control" rows="3" required></textarea>
-    </div>
-
-    <div class="mb-3">
-        <label for="task_url" class="form-label">Ссылка на задачу:</label>
-        <input type="url" name="task_url" id="task_url" class="form-control" placeholder="https://...">
-    </div>
-
-<div class="d-flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">🔧 Отправить в сервис</button>
-        <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-secondary">❌ Отмена</a>
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-danger btn-lg">
+            <i class="bi bi-tools"></i> Отправить в сервис
+        </button>
+        <a href="{% url 'assembly_detail' assembly.id %}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-lg"></i> Отмена
+        </a>
     </div>
 </form>
-
 {% endblock %}

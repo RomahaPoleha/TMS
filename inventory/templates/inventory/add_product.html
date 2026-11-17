@@ -1,57 +1,72 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-
-<h2>Добавление новой номенклатуры</h2>
-
-<!-- Блок для отображения ошибок -->
-{% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
-{% endif %}
-
-<form method="POST">
-    {% csrf_token %}
-
-    <div class="mb-3">
-        <label for="name" class="form-label">Наименование товара:</label>
-        <input type="text"
-               class="form-control"
-               id="name"
-               name="name"
-               value="{{ name|default:'' }}"
-               required>
-    </div>
-
-    <div class="mb-3">
-        <label for="equipment_type" class="form-label">Тип оборудования:</label>
-        <select class="form-select" id="equipment_type" name="equipment_type">
-            <option value="">-- Выберите тип --</option>
-            {% for et in equipment_types %}
-                <option value="{{ et.id }}" {% if et.id == selected_equipment_type_id %}selected{% endif %}>
-                    {{ et.name }}
-                </option>
-            {% endfor %}
-        </select>
-    </div>
-        <div class="mb-3 form-check">
-        <input type="checkbox" class="form-check-input" id="requires_serial" name="requires_serial" checked>
-        <label class="form-check-label" for="requires_serial">
-            Требует серийного номера
-        </label>
-        <small class="form-text text-muted d-block">
-            Снимите галочку для расходных материалов (створки, крепления, кабели)
-        </small>
-    </div>
-    <div class="mb-3">
-    <label for="new_equipment_type" class="form-label">Или создайте новый тип:</label>
-    <input type="text" name="new_equipment_type" id="new_equipment_type" class="form-control" placeholder="Например: Интерактивные панели">
-    <small class="form-text text-muted">Если нужного типа нет в списке, введите его название здесь</small>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-tag me-2 text-info"></i>Новый товар</h2>
+    <a href="{% url 'add_units' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К приёмке
+    </a>
 </div>
 
-<div class="d-flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">➕ Создать товар</button>
-        <a href="{% url 'add_units' %}" class="btn btn-secondary">❌ Отмена</a>
-    </div>
-</form>
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
 
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">Создание номенклатуры</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="name" class="form-label fw-medium">Наименование товара <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ name|default:'' }}" required placeholder="Например: Интерактивная панель 65''">
+            </div>
+
+            <div class="mb-3">
+                <label for="equipment_type" class="form-label fw-medium">Тип оборудования <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <select class="form-select" id="equipment_type" name="equipment_type">
+                        <option value="">-- Выберите тип --</option>
+                        {% for et in equipment_types %}
+                            <option value="{{ et.id }}" {% if et.id == selected_equipment_type_id %}selected{% endif %}>
+                                {{ et.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <span class="input-group-text" title="Или создайте новый ниже">/</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="new_equipment_type" class="form-label">Или создайте новый тип</label>
+                <div class="input-group">
+                    <input type="text" name="new_equipment_type" id="new_equipment_type" class="form-control" placeholder="Например: Интерактивные панели">
+                    <span class="input-group-text text-muted"><i class="bi bi-plus"></i></span>
+                </div>
+                <small class="form-text text-muted">Если нужного типа нет в списке, введите название здесь — он создастся автоматически</small>
+            </div>
+
+            <div class="mb-3 form-check form-switch">
+                <input type="checkbox" class="form-check-input" id="requires_serial" name="requires_serial" checked>
+                <label class="form-check-label fw-medium" for="requires_serial">Требует серийного номера</label>
+                <small class="form-text text-muted d-block">Снимите галочку для расходных материалов (створки, крепления, кабели) — они будут сразу доступны к продаже без ввода серийников</small>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> Создать товар
+                </button>
+                <a href="{% url 'add_units' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i> Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

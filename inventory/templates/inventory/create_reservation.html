@@ -1,23 +1,24 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-<h2>Создать резерв</h2>
-
-{% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
-{% endif %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-bookmark-plus me-2 text-primary"></i>Создать резерв</h2>
+    <a href="{% url 'reservations' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К списку
+    </a>
+</div>
 
 <form method="POST" id="reservation-form">
     {% csrf_token %}
 
-    <!-- 1. Выбор клиента -->
-    <div class="card mb-3">
-        <div class="card-header">
-            <h5 class="mb-0">Клиент</h5>
+    <!-- 1. Клиент -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0"><i class="bi bi-person me-2 text-primary"></i>Клиент</h5>
         </div>
         <div class="card-body">
             <div class="mb-3">
-                <label for="client" class="form-label">Выберите из списка:</label>
+                <label for="client" class="form-label fw-medium">Выберите из списка</label>
                 <select name="client" id="client" class="form-select">
                     <option value="">-- Выберите клиента --</option>
                     {% for client in clients %}
@@ -27,30 +28,34 @@
             </div>
             <div class="text-center text-muted mb-2">— или —</div>
             <div class="mb-0">
-                <label for="new_client_name" class="form-label">Введите имя нового клиента:</label>
-                <input type="text" name="new_client_name" id="new_client_name" class="form-control"
-                       placeholder="Название организации">
+                <label for="new_client_name" class="form-label fw-medium">Новый клиент</label>
+                <input type="text" name="new_client_name" id="new_client_name" class="form-control" placeholder="Название организации">
             </div>
         </div>
     </div>
 
-    <hr>
+    <hr class="my-4">
 
     <!-- 2. Позиции резерва -->
-    <h4 class="mb-3">Позиции резерва</h4>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-list-check me-2 text-primary"></i>Позиции резерва</h4>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="add-item">
+            <i class="bi bi-plus-lg"></i> Добавить позицию
+        </button>
+    </div>
 
     <div id="items-container">
-        <div class="item-row card mb-2">
+        <div class="item-row card mb-3 shadow-sm border-0">
             <div class="card-body">
                 <div class="row align-items-end">
                     <div class="col-md-7">
-                        <label class="form-label small text-muted">Товар или Готовый комплект</label>
-                        <select name="item_1" class="form-select">
+                        <label class="form-label fw-medium small">Товар или готовый комплект <span class="text-danger">*</span></label>
+                        <select name="item_1" class="form-select" required>
                             <option value="">-- Выберите позицию --</option>
                             <optgroup label="📦 Готовые комплекты">
                                 {% for assembly in available_assemblies %}
                                     <option value="a_{{ assembly.id }}">
-                                        [КОМПЛЕКТ] {{ assembly.kit.name }}
+                                        [КОМПЛЕКТ] {{ assembly.kit.name }} {% if assembly.serial_number %}({{ assembly.serial_number }}){% endif %}
                                     </option>
                                 {% endfor %}
                             </optgroup>
@@ -64,22 +69,26 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Кол-во</label>
-                        <input type="number" name="quantity_1" min="1" value="1" class="form-control">
+                        <label class="form-label fw-medium small">Кол-во</label>
+                        <input type="number" name="quantity_1" min="1" value="1" class="form-control" required>
                     </div>
                     <div class="col-md-2 text-end">
-                        <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="display:none;" title="Удалить">❌</button>
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-item d-none" title="Удалить">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <button type="button" class="btn btn-outline-primary mb-3" id="add-item">➕ Добавить позицию</button>
-
-    <div class="d-flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary btn-lg">📋 Зарезервировать</button>
-        <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">❌ Отмена</a>
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-bookmark-check"></i> Зарезервировать
+        </button>
+        <a href="{% url 'reservations' %}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-lg"></i> Отмена
+        </a>
     </div>
 </form>
 
@@ -128,7 +137,7 @@ document.getElementById('add-item').addEventListener('click', function() {
     input.value = '1';
 
     const removeBtn = newRow.querySelector('.remove-item');
-    removeBtn.style.display = 'inline-block';
+    removeBtn.classList.remove('d-none');
 
     removeBtn.addEventListener('click', function() {
         newRow.remove();
@@ -156,5 +165,4 @@ document.querySelectorAll('.remove-item').forEach(function(btn) {
     });
 });
 </script>
-
 {% endblock %}

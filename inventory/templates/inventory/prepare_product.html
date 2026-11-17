@@ -1,34 +1,49 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-gear me-2 text-warning"></i>Подготовка: {{ product.name }}</h2>
+    <a href="{% url 'prepare_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К списку
+    </a>
+</div>
 
-
-
-<h2>{{ product.name }}</h2>
-<p>К подготовке: {{ units|length }} устройств</p>
-<form method = "POST">
-  {% csrf_token %}
-
-    <table class="table table-striped table-hover table-bordered">
-    <thead>
-     <tr>
-        <th> Товар </th>
-        <th> Поле для ввода серийниа </th>
-       <th> Поле подтверждения</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for unit in units %}
-    <tr>
-        <td>{{ unit.product }}</td>
-        <td><input type="text" name="serial_{{ unit.id }}"></td>
-        <td> <button type="submit" name="prepare_unit" value="{{ unit.id }}" class="btn btn-primary btn-sm">
-         Подготовить
-           </button>
-           </td>
-    </tr>
-    {% endfor %}
-    </tbody>
-    </table>
-</form>
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">К подготовке: {{ units|length }} шт. (статус IN_STOCK)</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Устройство</th>
+                            <th>Серийный номер</th>
+                            <th class="text-center pe-4">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for unit in units %}
+                        <tr>
+                            <td class="ps-4">
+                                <code>ID: {{ unit.id }}</code>
+                            </td>
+                            <td>
+                                <input type="text" name="serial_{{ unit.id }}" class="form-control" placeholder="Введите серийный номер" required>
+                            </td>
+                            <td class="text-center pe-4">
+                                <button type="submit" name="prepare_unit" value="{{ unit.id }}" class="btn btn-success">
+                                    <i class="bi bi-check-lg"></i> Подготовить
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

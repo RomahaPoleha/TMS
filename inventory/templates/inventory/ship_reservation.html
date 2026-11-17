@@ -1,71 +1,79 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-<h2>Отгрузка резерва #{{ reservation.id }}</h2>
-<p><strong>Клиент:</strong> {{ reservation.client }}</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-box-arrow-up me-2 text-success"></i>Отгрузка резерва #{{ reservation.id }}</h2>
+    <a href="{% url 'reservations' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К резервам
+    </a>
+</div>
 
-
+<div class="alert alert-info mb-4">
+    <i class="bi bi-person me-2"></i><strong>Клиент:</strong> {{ reservation.client }}
+    <span class="ms-3"><i class="bi bi-calendar me-1"></i>Создан: {{ reservation.created_at|date:"d.m.Y H:i" }}</span>
+</div>
 
 <form method="POST">
     {% csrf_token %}
 
     {% for data in items_with_units %}
-        <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{ data.item.product.name }}</strong> — {{ data.item.quantity }} шт.
-                </div>
-                {% if not data.item.product.requires_serial %}
-                    <span class="badge bg-info">Без серийников</span>
-                {% endif %}
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <div>
+                <strong>{{ data.item.product.name }}</strong> — {{ data.item.quantity }} шт.
             </div>
-            <div class="card-body">
-                {% if data.item.product.requires_serial %}
-                    <!-- Для маркируемых: выбор конкретных Unit'ов -->
-                    <div class="row">
-                        {% for i in data.quantity_range %}
-                            <div class="col-md-4 mb-2">
-                                <label class="form-label small">Экземпляр {{ forloop.counter }}</label>
-                                <select name="unit_{{ data.item.id }}" class="form-select" required>
-                                    <option value="">-- Выберите устройство --</option>
-                                    {% for unit in data.available_units %}
-                                        <option value="{{ unit.id }}">{{ unit.serial_number }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <!-- Для немаркируемых: просто информация -->
-                    <div class="alert alert-info mb-0">
-                        Система автоматически спишет {{ data.item.quantity }} шт. со склада.
-                    </div>
-                {% endif %}
-            </div>
+            {% if not data.item.product.requires_serial %}
+                <span class="badge bg-info"><i class="bi bi-tag"></i> Без серийников</span>
+            {% endif %}
         </div>
+        <div class="card-body">
+            {% if data.item.product.requires_serial %}
+                <div class="row">
+                    {% for i in data.quantity_range %}
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-medium small">Экземпляр {{ forloop.counter }}</label>
+                        <select name="unit_{{ data.item.id }}" class="form-select" required>
+                            <option value="">-- Выберите устройство --</option>
+                            {% for unit in data.available_units %}
+                                <option value="{{ unit.id }}">{{ unit.serial_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Система автоматически спишет {{ data.item.quantity }} шт. со склада (статус READY).
+                </div>
+            {% endif %}
+        </div>
+    </div>
     {% endfor %}
 
     {% if assemblies_with_info %}
-        <h4 class="mt-4">Готовые сборки к отгрузке</h4>
-        {% for data in assemblies_with_info %}
-            <div class="card mb-3 border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <strong>{{ data.assembly.kit.name }}</strong> (Сборка #{{ data.assembly.id }})
-                    {% if data.assembly.serial_number %}
-                        <span class="ms-2 badge bg-secondary">{{ data.assembly.serial_number }}</span>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    <p class="mb-0">Сборка будет отгружена как единое целое. Серийный номер: {{ data.assembly.serial_number|default:"—" }}</p>
-                </div>
-            </div>
-        {% endfor %}
+    <h4 class="mb-3 mt-4"><i class="bi bi-puzzle me-2 text-info"></i>Готовые сборки к отгрузке</h4>
+    {% for data in assemblies_with_info %}
+    <div class="card shadow-sm mb-4 border-0 border-warning">
+        <div class="card-header bg-warning bg-opacity-10 border-warning py-3">
+            <strong>{{ data.assembly.kit.name }}</strong> (Сборка #{{ data.assembly.id }})
+            {% if data.assembly.serial_number %}
+                <span class="ms-2 badge bg-dark">{{ data.assembly.serial_number }}</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <p class="mb-0">Сборка будет отгружена как единое целое. Серийный номер: {{ data.assembly.serial_number|default:"—" }}</p>
+        </div>
+    </div>
+    {% endfor %}
     {% endif %}
 
-<div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-success btn-lg">📤 Подтвердить отгрузку</button>
-        <a href="{% url 'reservations' %}" class="btn btn-secondary btn-lg">❌ Отмена</a>
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="bi bi-box-arrow-up"></i> Подтвердить отгрузку
+        </button>
+        <a href="{% url 'reservations' %}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-lg"></i> Отмена
+        </a>
     </div>
 </form>
-
 {% endblock %}

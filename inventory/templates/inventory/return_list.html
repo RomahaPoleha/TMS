@@ -1,51 +1,51 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-1">↩️ Возвраты (RMA)</h1>
-            <p class="text-muted mb-0">История возвращённых товаров и комплектов</p>
-        </div>
-        <a href="{% url 'create_return' %}" class="btn btn-primary">➕ Оформить возврат</a>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-arrow-return-left me-2 text-warning"></i>Возвраты (RMA)</h2>
+    <a href="{% url 'create_return' %}" class="btn btn-warning">
+        <i class="bi bi-plus-lg"></i> Оформить возврат
+    </a>
+</div>
 
-    {% if returns %}
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0 align-middle">
+{% if returns %}
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Дата</th>
+                        <th class="ps-4">Дата</th>
                         <th>Клиент</th>
                         <th>Товар / Сборка</th>
-                        <th>Решение</th>
+                        <th class="text-center">Решение</th>
                         <th>Причина</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ret in returns %}
                     <tr>
-                        <td>{{ ret.returned_at|date:"d.m.Y H:i" }}</td>
+                        <td class="ps-4">{{ ret.returned_at|date:"d.m.Y H:i" }}</td>
                         <td>{{ ret.client.name }}</td>
                         <td>
                             {% if ret.unit %}
-                                {{ ret.unit.product.name }}
+                                <strong>{{ ret.unit.product.name }}</strong>
                                 {% if ret.unit.serial_number %}
                                     <br><small class="text-muted">{{ ret.unit.serial_number }}</small>
                                 {% endif %}
                             {% elif ret.assembly %}
+                                <span class="badge bg-info text-dark me-1"><i class="bi bi-puzzle"></i></span>
                                 <strong>[Комплект]</strong> {{ ret.assembly.kit.name }}
                                 {% if ret.assembly.serial_number %}
                                     <br><small class="text-muted">{{ ret.assembly.serial_number }}</small>
                                 {% endif %}
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="text-center">
                             {% if ret.disposition == "back_to_stock" %}
-                                <span class="badge bg-success">На склад</span>
+                                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2"><i class="bi bi-box-arrow-in-down"></i> На склад</span>
                             {% else %}
-                                <span class="badge bg-danger">В сервис</span>
+                                <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2"><i class="bi bi-tools"></i> В сервис</span>
                             {% endif %}
                         </td>
                         <td>{{ ret.reason }}</td>
@@ -55,11 +55,17 @@
             </table>
         </div>
     </div>
-    {% else %}
-    <div class="alert alert-info">
-        <h5 class="alert-heading">📭 Возвратов пока нет</h5>
-        <p class="mb-0">Оформленные возвраты появятся здесь</p>
-    </div>
-    {% endif %}
 </div>
+{% else %}
+<div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">Возвратов пока нет</h5>
+        <p class="text-muted small mb-3">Оформленные возвраты появятся здесь</p>
+        <a href="{% url 'create_return' %}" class="btn btn-warning">
+            <i class="bi bi-plus-lg"></i> Оформить возврат
+        </a>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

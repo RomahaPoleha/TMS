@@ -1212,3 +1212,187 @@ def cancel_assembly_reservation(request: HttpRequest, assembly_id: int) -> HttpR
         except (Assembly.DoesNotExist, ValidationError) as e:
             messages.error(request, str(e) if isinstance(e, ValidationError) else "Сборка не найдена или уже не в резерве")
     return redirect('reservations')
+
+
+# ==================== KIT CRUD ====================
+
+def kit_list(request: HttpRequest) -> HttpResponse:
+    """Список всех комплектов (рецептов)."""
+    kits = Kit.objects.select_related('equipment_type').prefetch_related('components__product').order_by('name')
+    return render(request, "inventory/kit_list.html", {"kits": kits})
+
+
+@transaction.atomic
+def create_kit(request: HttpRequest) -> HttpResponse:
+    """Создание комплекта с компонентами."""
+    equipment_types = EquipmentType.objects.all()
+    products = Product.objects.filter(is_component=True).select_related('equipment_type').order_by('name')
+
+    if request.method == "POST":
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip()
+        equipment_type_id = request.POST.get('equipment_type')
+        is_active = request.POST.get('is_active') == 'on'
+
+        if not name:
+            messages.error(request, "Введите название комплекта")
+            return render(request, "inventory/create_kit.html", {
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        if Kit.objects.filter(name=name).exists():
+            messages.error(request, "Комплект с таким названием уже существует")
+            return render(request, "inventory/create_kit.html", {
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        if not equipment_type_id:
+            messages.error(request, "Выберите тип оборудования")
+            return render(request, "inventory/create_kit.html", {
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        try:
+            equipment_type = EquipmentType.objects.get(id=equipment_type_id)
+        except EquipmentType.DoesNotExist:
+            messages.error(request, "Тип оборудования не найден")
+            return render(request, "inventory/create_kit.html", {
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        kit = Kit.objects.create(
+            name=name,
+            code=code,
+            equipment_type=equipment_type,
+            is_active=is_active,
+        )
+
+        # Сохраняем компоненты
+        component_count = 0
+        for key, value in request.POST.items():
+            if key.startswith('component_') and value:
+                idx = key.split('_')[1]
+                quantity = request.POST.get(f'quantity_{idx}')
+                if quantity:
+                    try:
+                        product = Product.objects.get(id=value)
+                        qty = int(quantity)
+                        if qty > 0:
+                            KitComponent.objects.create(kit=kit, product=product, quantity=qty)
+                            component_count += 1
+                    except (Product.DoesNotExist, ValueError):
+                        pass
+
+        if component_count == 0:
+            messages.warning(request, "Комплект создан, но компоненты не добавлены. Добавьте их на странице редактирования.")
+
+        messages.success(request, f"Комплект '{name}' успешно создан!")
+        return redirect('kit_list')
+
+    return render(request, "inventory/create_kit.html", {
+        "equipment_types": equipment_types,
+        "products": products,
+    })
+
+
+@transaction.atomic
+def edit_kit(request: HttpRequest, kit_id: int) -> HttpResponse:
+    """Редактирование комплекта и его компонентов."""
+    kit = get_object_or_404(Kit.objects.prefetch_related('components__product'), id=kit_id)
+    equipment_types = EquipmentType.objects.all()
+    products = Product.objects.filter(is_component=True).select_related('equipment_type').order_by('name')
+
+    if request.method == "POST":
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip()
+        equipment_type_id = request.POST.get('equipment_type')
+        is_active = request.POST.get('is_active') == 'on'
+
+        if not name:
+            messages.error(request, "Введите название комплекта")
+            return render(request, "inventory/edit_kit.html", {
+                "kit": kit,
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        if Kit.objects.filter(name=name).exclude(id=kit_id).exists():
+            messages.error(request, "Комплект с таким названием уже существует")
+            return render(request, "inventory/edit_kit.html", {
+                "kit": kit,
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        if not equipment_type_id:
+            messages.error(request, "Выберите тип оборудования")
+            return render(request, "inventory/edit_kit.html", {
+                "kit": kit,
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        try:
+            equipment_type = EquipmentType.objects.get(id=equipment_type_id)
+        except EquipmentType.DoesNotExist:
+            messages.error(request, "Тип оборудования не найден")
+            return render(request, "inventory/edit_kit.html", {
+                "kit": kit,
+                "equipment_types": equipment_types,
+                "products": products,
+            })
+
+        # Обновляем комплект
+        kit.name = name
+        kit.code = code
+        kit.equipment_type = equipment_type
+        kit.is_active = is_active
+        kit.save()
+
+        # Обновляем компоненты: удаляем старые, создаем новые
+        KitComponent.objects.filter(kit=kit).delete()
+
+        for key, value in request.POST.items():
+            if key.startswith('component_') and value:
+                idx = key.split('_')[1]
+                quantity = request.POST.get(f'quantity_{idx}')
+                if quantity:
+                    try:
+                        product = Product.objects.get(id=value)
+                        qty = int(quantity)
+                        if qty > 0:
+                            KitComponent.objects.create(kit=kit, product=product, quantity=qty)
+                    except (Product.DoesNotExist, ValueError):
+                        pass
+
+        messages.success(request, f"Комплект '{name}' успешно обновлён!")
+        return redirect('kit_list')
+
+    return render(request, "inventory/edit_kit.html", {
+        "kit": kit,
+        "equipment_types": equipment_types,
+        "products": products,
+    })
+
+
+@transaction.atomic
+def delete_kit(request: HttpRequest, kit_id: int) -> HttpResponse:
+    """Удаление комплекта."""
+    kit = get_object_or_404(Kit, id=kit_id)
+
+    if request.method == "POST":
+        # Проверка: есть ли сборки этого комплекта
+        if Assembly.objects.filter(kit=kit).exists():
+            messages.error(request, "Нельзя удалить комплект, по которому есть сборки")
+            return redirect('kit_list')
+
+        name = kit.name
+        kit.delete()
+        messages.success(request, f"Комплект '{name}' удалён")
+        return redirect('kit_list')
+
+    return render(request, "inventory/delete_kit.html", {"kit": kit})

@@ -1,74 +1,66 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-
-<h2>Активные резервы</h2>
-
-<a href="{% url 'create_reservation' %}" class="btn btn-secondary btn-lg mb-3">Добавить резерв</a>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-bookmark-check me-2 text-primary"></i>Активные резервы</h2>
+    <a href="{% url 'create_reservation' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Создать резерв
+    </a>
+</div>
 
 {% if reservations %}
     {% for reservation in reservations %}
-    <div class="card mb-3 shadow-sm">
-        <!-- Шапка карточки -->
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
             <div>
-                <strong>Резерв #{{ reservation.id }}</strong>
-                — {{ reservation.client }}
+                <strong>Резерв #{{ reservation.id }}</strong> — {{ reservation.client }}
                 <br>
                 <small class="text-muted">{{ reservation.created_at|date:"d.m.Y H:i" }}</small>
             </div>
             <div class="btn-group btn-group-sm" role="group">
                 <a href="{% url 'ship_reservation' reservation.id %}" class="btn btn-success">
-                    📤 Отгрузить
+                    <i class="bi bi-box-arrow-up"></i> Отгрузить
                 </a>
                 <form method="POST" action="{% url 'cancel_reservation' reservation.id %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-danger"
-                            onclick="return confirm('Отменить резерв #{{ reservation.id }}?')">
-                        ❌ Отменить
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Отменить резерв #{{ reservation.id }}?')">
+                        <i class="bi bi-x-lg"></i> Отменить
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- Единая таблица позиций через ReservationLine -->
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Позиция</th>
+                        <th class="ps-4">Позиция</th>
                         <th class="text-center">Количество</th>
-                        <th class="text-center">Действия</th>
+                        <th class="text-center pe-4">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for line in reservation.lines.all %}
                     <tr>
-                        <td>
+                        <td class="ps-4">
                             {% if line.type == "product" %}
-                                <span class="badge bg-secondary me-2">Товар</span>
+                                <span class="badge bg-secondary me-2"><i class="bi bi-box"></i> Товар</span>
                                 {{ line.product.name }}
                             {% elif line.type == "assembly" %}
-                                <span class="badge bg-info text-dark me-2">Комплект</span>
+                                <span class="badge bg-info text-dark me-2"><i class="bi bi-puzzle"></i> Комплект</span>
                                 {{ line.assembly.kit.name }}
                             {% elif line.type == "kit" %}
-                                <span class="badge bg-warning text-dark me-2">Комплект (на сборку)</span>
+                                <span class="badge bg-warning text-dark me-2"><i class="bi bi-puzzle-fill"></i> На сборку</span>
                                 {{ line.kit.name }}
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            {% if line.type == "product" %}
-                                <span class="badge bg-primary">{{ line.quantity }} шт.</span>
-                            {% elif line.type == "assembly" %}
-                                <span class="badge bg-primary">{{ line.quantity }} шт.</span>
-                            {% elif line.type == "kit" %}
-                                <span class="badge bg-primary">{{ line.quantity }} шт.</span>
-                            {% endif %}
+                            <span class="badge bg-primary px-3 py-2">{{ line.quantity }} шт.</span>
                         </td>
-                        <td class="text-center">
+                        <td class="text-center pe-4">
                             {% if line.type == "assembly" %}
                                 <a href="{% url 'assembly_detail' line.assembly.id %}" class="btn btn-sm btn-outline-info">
-                                    🔍 Состав
+                                    <i class="bi bi-search"></i> Состав
                                 </a>
                             {% endif %}
                         </td>
@@ -80,10 +72,15 @@
     </div>
     {% endfor %}
 {% else %}
-    <div class="alert alert-info mt-3">
-        <h5 class="alert-heading">📭 Нет активных резервов</h5>
-        <p class="mb-0">Создайте первый резерв, и он появится здесь</p>
+<div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">Нет активных резервов</h5>
+        <p class="text-muted small mb-3">Создайте первый резерв, и он появится здесь</p>
+        <a href="{% url 'create_reservation' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Создать резерв
+        </a>
     </div>
+</div>
 {% endif %}
-
 {% endblock %}

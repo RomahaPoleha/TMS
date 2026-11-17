@@ -1,49 +1,92 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-<h2>Список устройств</h2>
-<form method="GET" class="mb-3">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-list-ul me-2 text-primary"></i>Оборудование на складе</h2>
+    <a href="{% url 'add_units' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Приёмка
+    </a>
+</div>
+
+<form method="GET" class="mb-4">
     <div class="input-group">
         <input type="text" name="q" class="form-control" placeholder="Поиск по серийному номеру..." value="{{ query }}">
-        <button type="submit" class="btn btn-outline-primary">Найти</button>
+        <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i></button>
         {% if query %}
             <a href="{{ request.path }}" class="btn btn-outline-secondary">Сбросить</a>
         {% endif %}
     </div>
-</form>
+</div>
 
-
-
-<table class="table table-striped table-hover table-bordered">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Товар</th>
-            <th>Серийный номер</th>
-            <th>Статус</th>
-            <th>Действия</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for unit in units %}
-        <tr>
-            <td>{{ unit.id }}</td>
-            <td>{{ unit.product }}</td>
-            <td>{% if unit.serial_number %}{{ unit.serial_number }}{% else %}(без серийника){% endif %}</td>
-            <td>{{ unit.status }}</td>
-            <td>
-                <div class="btn-group btn-group-sm" role="group">
-                    <a href="{% url 'edit_unit' unit.id %}" class="btn btn-outline-primary">✏️ Редактировать</a>
-                    <a href="{% url 'unit_history' unit.id %}" class="btn btn-outline-info">📋 История</a>
-                    <form method="POST" action="{% url 'delete_unit' unit.id %}" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Удалить устройство?')">🗑️ Удалить</button>
-                    </form>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Товар</th>
+                        <th>Серийный номер</th>
+                        <th class="text-center">Статус</th>
+                        <th class="text-center pe-4">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for unit in units %}
+                    <tr>
+                        <td class="ps-4 text-muted">{{ unit.id }}</td>
+                        <td class="fw-medium">{{ unit.product }}</td>
+                        <td>
+                            {% if unit.serial_number %}
+                                <code>{{ unit.serial_number }}</code>
+                            {% else %}
+                                <span class="text-muted fst-italic">(без серийника)</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if unit.status == "IN_STOCK" %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2">{{ unit.get_status_display }}</span>
+                            {% elif unit.status == "READY" %}
+                                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">{{ unit.get_status_display }}</span>
+                            {% elif unit.status == "ASSEMBLED" %}
+                                <span class="badge bg-info bg-opacity-10 text-info px-3 py-2">{{ unit.get_status_display }}</span>
+                            {% elif unit.status == "IN_SERVICE" %}
+                                <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2">{{ unit.get_status_display }}</span>
+                            {% elif unit.status == "SOLD" %}
+                                <span class="badge bg-dark bg-opacity-10 text-dark px-3 py-2">{{ unit.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border px-3 py-2">{{ unit.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center pe-4">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'edit_unit' unit.id %}" class="btn btn-outline-primary" title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'unit_history' unit.id %}" class="btn btn-outline-info" title="История">
+                                    <i class="bi bi-clock-history"></i>
+                                </a>
+                                <form method="POST" action="{% url 'delete_unit' unit.id %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Удалить устройство?')" title="Удалить">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+                            <h5 class="text-muted">Устройств не найдено</h5>
+                            <p class="text-muted small mb-0">Добавьте оборудование через раздел "Приёмка"</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

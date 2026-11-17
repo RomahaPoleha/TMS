@@ -1,52 +1,72 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
-<h2>Отправить оборудование в сервис</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-tools me-2 text-danger"></i>Отправить в сервис</h2>
+    <a href="{% url 'service' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К списку
+    </a>
+</div>
 
-<form method="POST">
-    {% csrf_token %}
-
-    <div class="mb-3">
-        <label for="unit" class="form-label">Выберите устройство:</label>
-        <select name="unit" id="unit" class="form-select" required>
-            <option value="">-- Выберите --</option>
-            {% for unit in units %}
-                <option value="{{ unit.id }}" data-has-serial="{% if unit.serial_number %}true{% else %}false{% endif %}">
-                    {{ unit.product }}
-                    {% if unit.serial_number %}— {{ unit.serial_number }}{% else %}(без серийника){% endif %}
-                </option>
-            {% endfor %}
-        </select>
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">Выберите устройство для отправки в ремонт</h5>
     </div>
+    <div class="card-body">
+        <form method="POST" id="service-form">
+            {% csrf_token %}
 
-    <div class="mb-3" id="serial-block" style="display:none;">
-        <label for="serial_number" class="form-label">Серийный номер:</label>
-        <input type="text" name="serial_number" id="serial_number" class="form-control">
-    </div>
+            <div class="mb-3">
+                <label for="unit" class="form-label fw-medium">Устройство <span class="text-danger">*</span></label>
+                <select name="unit" id="unit" class="form-select" required>
+                    <option value="">-- Выберите устройство --</option>
+                    {% for unit in units %}
+                        <option value="{{ unit.id }}" data-has-serial="{% if unit.serial_number %}true{% else %}false{% endif %}">
+                            {{ unit.product.name }}
+                            {% if unit.serial_number %} — {{ unit.serial_number }}{% else %} (без серийника){% endif %}
+                            <small class="text-muted d-block">[{{ unit.get_status_display }}]</small>
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-    <div class="mb-3">
-        <label for="defect_type" class="form-label">Вид неисправности:</label>
-        <div class="input-group">
-            <select name="defect_type" id="defect_type" class="form-select" required>
-                <option value="">-- Выберите неисправность --</option>
-                {% for dt in defect_types %}
-                    <option value="{{ dt.id }}">{{ dt.name }}</option>
-                {% endfor %}
-            </select>
-            <a href="{% url 'create_defect_type' %}" class="btn btn-outline-secondary">+ Новая</a>
-        </div>
-    </div>
+            <div class="mb-3" id="serial-block" style="display:none;">
+                <label for="serial_number" class="form-label fw-medium">Серийный номер <span class="text-danger">*</span></label>
+                <input type="text" name="serial_number" id="serial_number" class="form-control" placeholder="Введите серийный номер устройства">
+                <small class="form-text text-muted">Обязательно, если у устройства нет серийного номера</small>
+            </div>
 
-    <div class="mb-3">
-        <label for="service_comment" class="form-label">Комментарий:</label>
-        <textarea name="service_comment" id="service_comment" class="form-control" rows="3" required></textarea>
-    </div>
+            <div class="mb-3">
+                <label for="defect_type" class="form-label fw-medium">Вид неисправности <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <select name="defect_type" id="defect_type" class="form-select" required>
+                        <option value="">-- Выберите неисправность --</option>
+                        {% for dt in defect_types %}
+                            <option value="{{ dt.id }}">{{ dt.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <a href="{% url 'create_defect_type' %}" class="btn btn-outline-secondary" title="Добавить новый вид неисправности">
+                        <i class="bi bi-plus-lg"></i>
+                    </a>
+                </div>
+            </div>
 
-    <div class="d-flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">🔧 Отправить в сервис</button>
-        <a href="{% url 'service' %}" class="btn btn-secondary">❌ Отмена</a>
+            <div class="mb-3">
+                <label for="service_comment" class="form-label fw-medium">Комментарий / Описание проблемы <span class="text-danger">*</span></label>
+                <textarea name="service_comment" id="service_comment" class="form-control" rows="3" required placeholder="Опишите проблему..."></textarea>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-tools"></i> Отправить в сервис
+                </button>
+                <a href="{% url 'service' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i> Отмена
+                </a>
+            </div>
+        </form>
     </div>
-</form>
+</div>
 
 <script>
 document.getElementById('unit').addEventListener('change', function() {
@@ -65,5 +85,4 @@ document.getElementById('unit').addEventListener('change', function() {
     }
 });
 </script>
-
 {% endblock %}

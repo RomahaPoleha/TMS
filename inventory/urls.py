@@ -25,15 +25,19 @@ urlpatterns = [
     path('assembly/add/', views.create_assembly, name='create_assembly'),
     path('assemblies/<int:assembly_id>/', views.assembly_detail, name='assembly_detail'),
     path('assemblies/<int:assembly_id>/finish-service/', views.finish_assembly_service, name='finish_assembly_service'),
-path('assemblies/<int:assembly_id>/service/', views.assembly_to_service, name='assembly_to_service'),
-path('assemblies/<int:assembly_id>/disassemble/', views.disassemble_assembly, name='disassemble_assembly'),
+    path('assemblies/<int:assembly_id>/service/', views.assembly_to_service, name='assembly_to_service'),
+    path('assemblies/<int:assembly_id>/disassemble/', views.disassemble_assembly, name='disassemble_assembly'),
     path('returns/', views.return_list, name='return_list'),
-path('returns/create/', views.create_return, name='create_return'),
+    path('returns/create/', views.create_return, name='create_return'),
     path('movement-log/', views.movement_log, name='movement_log'),
     path('kits/<int:kit_id>/potential/', views.kit_potential, name='kit_potential'),
     path('unit/<int:unit_id>/history/', views.unit_history, name='unit_history'),
     path('assembly/<int:assembly_id>/history/', views.assembly_history, name='assembly_history'),
-path('assemblies/<int:assembly_id>/cancel/', views.cancel_assembly_reservation, name='cancel_assembly_reservation'),
+    path('assemblies/<int:assembly_id>/cancel/', views.cancel_assembly_reservation, name='cancel_assembly_reservation'),
 
-
+    # Kit CRUD
+    path('kits/', views.kit_list, name='kit_list'),
+    path('kits/create/', views.create_kit, name='create_kit'),
+    path('kits/<int:kit_id>/edit/', views.edit_kit, name='edit_kit'),
+    path('kits/<int:kit_id>/delete/', views.delete_kit, name='delete_kit'),
 ]

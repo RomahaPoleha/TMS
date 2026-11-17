@@ -2,64 +2,67 @@
 
 {% block content %}
 
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>Остатки на складе</h2>
+    <!-- Здесь можно добавить кнопку обновления или экспорта, если нужно -->
+</div>
+
 <!-- 1. Группировка товаров по типу -->
 {% regroup products by equipment_type as type_list %}
 
 {% for type_group in type_list %}
-    <h2>{{ type_group.grouper.name }}</h2>
-    <table class="table table-striped table-hover table-bordered">
-        <thead>
-            <tr>
-                <th>Наименование</th>
-                <th>Всего на складе</th>
-                <th>Готовое оборудование</th>
-                <th>Сервис</th>
-                <th>Забронировано клиентами</th>
-                <th>Свободно к продаже</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for product in type_group.list %}
-            <tr>
-                <td>{{ product.name }}</td>
-                <td>{{ product.total_count }}</td>
-                <td>{{ product.ready_count }}</td>
-                <td>{{ product.service_count }}</td>
-                <td>{{ product.reserved_count }}</td>
-                <td>{{ product.available_count }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold text-primary">
+                <i class="bi bi-folder2-open me-2"></i>{{ type_group.grouper.name|default:"Без типа" }}
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Наименование</th>
+                            <th class="text-center">Всего</th>
+                            <th class="text-center">Готовое</th>
+                            <th class="text-center text-warning">В сервисе</th>
+                            <th class="text-center text-danger">Забронировано</th>
+                            <th class="text-center text-success fw-bold">Свободно к продаже</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in type_group.list %}
+                        <tr>
+                            <td class="ps-4 fw-medium">{{ product.name }}</td>
+                            <td class="text-center text-muted">{{ product.total_count }}</td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">{{ product.ready_count }}</span></td>
+                            <td class="text-center"><span class="badge bg-warning bg-opacity-10 text-warning">{{ product.service_count }}</span></td>
+                            <td class="text-center"><span class="badge bg-danger bg-opacity-10 text-danger">{{ product.reserved_count }}</span></td>
+                            <td class="text-center">
+                                <span class="badge bg-success bg-opacity-10 text-success fs-6 px-3 py-2 fw-bold">
+                                    {{ product.available_count }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                В этой категории пока нет товаров
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% empty %}
+    <div class="alert alert-light border text-center py-5">
+        <i class="bi bi-box-seam fs-1 text-muted d-block mb-3"></i>
+        <h5>Товары не найдены</h5>
+        <p class="text-muted">Добавьте оборудование через раздел "Приёмка товара"</p>
+    </div>
 {% endfor %}
-
-<!-- 2. Таблица комплектов -->
-<h2 class="mt-5">Комплекты</h2>
-
-{% if kits %}
-<table class="table table-striped table-hover table-bordered">
-    <thead class="table-dark">
-        <tr>
-            <th>Наименование</th>
-            <th>Можно изготовить</th>
-            <th>Готово</th>
-            <th>Резерв</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for kit in kits %}
-        <tr>
-            <td><strong>{{ kit.name }}</strong></td>
-            <td><span class="badge bg-info">{{ kit.get_potential_count }}</span> <a href="{% url 'kit_potential' kit.id %}" class="btn btn-sm btn-outline-info ms-2">🔍</a></td>
-            <td><span class="badge bg-success">{{ kit.ready_assemblies }}</span></td>
-            <td><span class="badge bg-warning">{{ kit.reserved_assemblies }}</span></td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<div class="alert alert-info">Комплекты ещё не созданы</div>
-{% endif %}
-
 
 {% endblock %}

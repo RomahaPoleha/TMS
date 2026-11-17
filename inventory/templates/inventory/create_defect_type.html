@@ -1,22 +1,35 @@
 {% extends "inventory/base.html" %}
 
 {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Новый вид неисправности</h2>
+    <a href="{% url 'add_to_service' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К сервису
+    </a>
+</div>
 
-<h2>Добавить тип неисправности</h2>
-
-
-
-
-<form method="POST">
-    {% csrf_token %}
-
-<div class="mb-3">
-        <label for="defect_type" class="form-label">Неисправность:</label>
-        <input type="text" name="defect_type" id="defect_type" class="form-control" required>
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">Добавить в справочник</h5>
     </div>
-<div class="d-flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">➕ Добавить неисправность</button>
-        <a href="{% url 'add_to_service' %}" class="btn btn-secondary">❌ Отмена</a>
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="defect_type" class="form-label fw-medium">Название неисправности <span class="text-danger">*</span></label>
+                <input type="text" name="defect_type" id="defect_type" class="form-control" required placeholder="Например: Не включается, треск экрана, нет изображения">
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-plus-lg"></i> Добавить
+                </button>
+                <a href="{% url 'add_to_service' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i> Отмена
+                </a>
+            </div>
+        </form>
     </div>
-</form>
+</div>
 {% endblock %}

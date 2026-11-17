@@ -4,46 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Складской учёт</title>
-    <!-- Подключаем Bootstrap (стили) -->
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa; /* Светло-серый фон для контраста с белыми карточками */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        main {
+            flex: 1;
+        }
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .nav-link {
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .nav-link i {
+            margin-right: 4px;
+        }
+    </style>
 </head>
 <body>
 
     <!-- Шапка с меню -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="#">Мой Склад</a>
-            <div class="navbar-nav">
-                <a class="nav-link" href="{% url 'dashboard' %}">Главная</a>
-                <a class="nav-link" href="{% url 'reservations' %}">Резервы</a>
-                <a class="nav-link" href="{% url 'add_units' %}">Приёмка товара</a>
-                <a class="nav-link" href="{% url 'service' %}">Сервис</a>
-                <a class="nav-link" href="{% url 'prepare_list' %}">Не готовые устройства</a>
-                <a class="nav-link" href="{% url 'reservation_history' %}">История отгрузок</a>
-                <a class="nav-link" href="{% url 'shipment_registry' %}">Реестр серийных номеров</a>
-                <a class="nav-link" href="{% url 'movement_log' %}">История движения</a>
-                <a class="nav-link" href="{% url 'unit_list' %}">Всё оборудование</a>
-                <a class="nav-link" href="{% url 'create_assembly' %}">Сборка комплектов</a>
-                <a class="nav-link" href="/admin/">Админка</a>
+    <nav class="navbar navbar-expand-xl navbar-dark bg-dark shadow-sm sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="bi bi-box-seam-fill me-2"></i>Мой Склад
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> Главная</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'unit_list' %}"><i class="bi bi-list-ul"></i> Оборудование</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'create_assembly' %}"><i class="bi bi-puzzle"></i> Комплекты</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'reservations' %}"><i class="bi bi-bookmark-check"></i> Резервы</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'add_units' %}"><i class="bi bi-plus-circle"></i> Приёмка</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i> Ещё
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'service' %}">Сервис</a></li>
+                            <li><a class="dropdown-item" href="{% url 'prepare_list' %}">Не готовые устройства</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'shipment_registry' %}">Реестр серийных номеров</a></li>
+                            <li><a class="dropdown-item" href="{% url 'movement_log' %}">История движения</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reservation_history' %}">История отгрузок</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'kit_list' %}"><i class="bi bi-puzzle me-2"></i>Комплекты (рецепты)</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="/admin/"><i class="bi bi-gear"></i> Админка</a></li>
+                        </ul>
+                    </li>
+                </ul>
             </div>
         </div>
     </nav>
 
     <!-- Основной контент -->
-    <div class="container">
+    <main class="container py-4">
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                    <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             {% endfor %}
         {% endif %}
+
         {% block content %}
         {% endblock %}
-    </div>
+    </main>
 
-    <!-- Подключаем скрипты Bootstrap (для интерактивности, если понадобится) -->
+    <!-- Подвал -->
+    <footer class="bg-white border-top py-3 mt-auto">
+        <div class="container text-center text-muted">
+            <small>&copy; {% now "Y" %} Система складского учёта. Все права защищены.</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

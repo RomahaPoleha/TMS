@@ -1,0 +1,130 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 text-dark"><i class="bi bi-puzzle me-2 text-info"></i>Создать комплект</h2>
+    <a href="{% url 'kit_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К списку
+    </a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">Основная информация</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="kit-form">
+            {% csrf_token %}
+
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label for="name" class="form-label fw-medium">Название комплекта <span class="text-danger">*</span></label>
+                    <input type="text" name="name" id="name" class="form-control" required placeholder="Например: Комплект интерактивной панели 65''">
+                </div>
+                <div class="col-md-4">
+                    <label for="code" class="form-label fw-medium">Код (артикул)</label>
+                    <input type="text" name="code" id="code" class="form-control" placeholder="KIT-001">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="equipment_type" class="form-label fw-medium">Тип оборудования <span class="text-danger">*</span></label>
+                <select name="equipment_type" id="equipment_type" class="form-select" required>
+                    <option value="">-- Выберите тип --</option>
+                    {% for et in equipment_types %}
+                        <option value="{{ et.id }}">{{ et.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3 form-check form-switch">
+                <input type="checkbox" class="form-check-input" id="is_active" name="is_active" checked>
+                <label class="form-check-label fw-medium" for="is_active">Активен</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Компоненты комплекта</h5>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="add-component">
+                <i class="bi bi-plus-lg"></i> Добавить компонент
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="components-container">
+                <div class="component-row card mb-3 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium small">Компонент <span class="text-danger">*</span></label>
+                                <select name="component_1" class="form-select" required>
+                                    <option value="">-- Выберите товар --</option>
+                                    {% for product in products %}
+                                        <option value="{{ product.id }}">{{ product.name }} ({{ product.equipment_type }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-medium small">Количество <span class="text-danger">*</span></label>
+                                <input type="number" name="quantity_1" min="1" value="1" class="form-control" required>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-component d-none" title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <small class="text-muted d-block mb-3">
+                <i class="bi bi-info-circle me-1"></i> Показываются только товары с флагом "Только для компонентов" (is_component=True)
+            </small>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" form="kit-form" class="btn btn-success btn-lg">
+                    <i class="bi bi-puzzle"></i> Создать комплект
+                </button>
+                <a href="{% url 'kit_list' %}" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-x-lg"></i> Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let componentCount = 1;
+
+document.getElementById('add-component').addEventListener('click', function() {
+    componentCount++;
+    const firstRow = document.querySelector('.component-row');
+    const newRow = firstRow.cloneNode(true);
+
+    const select = newRow.querySelector('select');
+    select.name = 'component_' + componentCount;
+    select.selectedIndex = 0;
+
+    const input = newRow.querySelector('input[type="number"]');
+    input.name = 'quantity_' + componentCount;
+    input.value = '1';
+
+    const removeBtn = newRow.querySelector('.remove-component');
+    removeBtn.classList.remove('d-none');
+
+    removeBtn.addEventListener('click', function() {
+        newRow.remove();
+    });
+
+    document.getElementById('components-container').appendChild(newRow);
+});
+
+document.querySelectorAll('.remove-component').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        this.closest('.component-row').remove();
+    });
+});
+</script>
+{% endblock %}
